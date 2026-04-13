@@ -1,0 +1,1482 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toccata and Fuga in C Major V3.0</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #ffffff;
+            --bg-light: #f8f9fa;
+            --bg-alt: #f0f4f8;
+            --primary: #c41e3a;
+            --primary-light: #e63950;
+            --primary-dark: #9a1830;
+            --primary-dim: rgba(196, 30, 58, 0.1);
+            --blue: #1e4a8a;
+            --blue-light: #2a5ea0;
+            --accent: #d4a849;
+            --accent-light: #e8c36a;
+            --text: #1a1a1a;
+            --text-light: #4a4a4a;
+            --text-muted: #6a6a6a;
+            --border: #e0e0e0;
+            --font-serif: 'Cormorant Garamond', Georgia, serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font-serif);
+            min-height: 100vh;
+            line-height: 1.6;
+            padding-bottom: 52px;
+        }
+        .sort-toggle {
+            background: transparent; border: 1px solid rgba(255,255,255,0.3); color: white;
+            font-family: var(--font-mono); font-size: 0.7rem; padding: 0.3rem 0.8rem;
+            cursor: pointer; transition: all 0.2s ease; text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .sort-toggle:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.5); }
+        .sort-toggle.active { background: var(--accent); border-color: var(--accent); color: var(--blue); font-weight: 600; }
+
+        .bottom-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 52px;
+            background: var(--bg-light); border-top: 2px solid var(--primary);
+            display: flex; align-items: center; padding: 0 12px; gap: 8px; z-index: 200;
+        }
+        .bottom-bar input, .bottom-bar textarea {
+            flex: 1; height: 32px; background: var(--bg); border: 1px solid var(--border);
+            color: var(--text); font-family: var(--font-mono); font-size: 0.8rem;
+            padding: 6px 10px; min-width: 0; resize: none; overflow: hidden;
+        }
+        .bottom-bar textarea { line-height: 1.3; }
+        .bottom-bar input:focus, .bottom-bar textarea:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 2px rgba(30,74,138,0.1); }
+        .bottom-bar input::placeholder, .bottom-bar textarea::placeholder { color: var(--text-muted); }
+        .bottom-bar .divider { width: 1px; height: 28px; background: var(--border); }
+        .bottom-bar .bar-btn {
+            height: 32px; min-width: 32px; background: var(--primary); border: 1px solid var(--primary);
+            color: white; font-family: var(--font-mono); font-size: 0.9rem; cursor: pointer;
+            transition: all 0.2s ease; display: flex; align-items: center; justify-content: center;
+        }
+        .bottom-bar .bar-btn:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
+        .bottom-bar .bar-btn.success { background: #28a745; border-color: #28a745; color: white; }
+        .lese-hl {
+            background: rgba(196, 30, 58, 0.12);
+            border-bottom: 2px solid rgba(196, 30, 58, 0.55);
+            border-radius: 2px;
+            padding: 0 1px;
+        }
+        .marquee-container {
+            background: var(--primary); border-bottom: 3px solid var(--primary-dark);
+            overflow: hidden; padding: 10px 0; position: sticky; top: 0; z-index: 100;
+        }
+        .marquee { display: flex; animation: marquee 60s linear infinite; white-space: nowrap; }
+        .marquee-content { display: flex; gap: 3rem; padding-right: 3rem; }
+        .marquee-item { font-family: var(--font-mono); font-size: 0.85rem; color: white; display: flex; align-items: center; gap: 0.5rem; }
+        .marquee-item .freq { background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 3px; font-size: 0.75rem; }
+        @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+        .nav {
+            display: flex; justify-content: center; gap: 2rem; padding: 1.5rem;
+            border-bottom: 1px solid var(--border); background: var(--bg);
+        }
+        .nav-btn {
+            background: transparent; border: 1px solid var(--border); color: var(--text-light);
+            font-family: var(--font-mono); font-size: 0.8rem; padding: 0.6rem 1.5rem;
+            cursor: pointer; transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 0.1em;
+        }
+        .nav-btn:hover { border-color: var(--blue); color: var(--blue); }
+        .nav-btn.active { background: var(--blue); color: white; border-color: var(--blue); }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        .page { display: none; }
+        .page.active { display: block; animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .page-title {
+            font-family: var(--font-serif); font-size: 2.5rem; font-weight: 400;
+            color: var(--blue); text-align: center; margin-bottom: 2rem; letter-spacing: 0.05em;
+        }
+        .page-title::after {
+            content: ''; display: block; width: 100px; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary), transparent);
+            margin: 1rem auto 0;
+        }
+        .stats-row { display: flex; justify-content: center; gap: 2rem; margin-bottom: 2rem; flex-wrap: wrap; }
+        .stat-badge { text-align: center; }
+        .stat-value { font-family: var(--font-mono); font-size: 2rem; color: var(--blue); }
+        .stat-label { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; }
+        .model-stats { text-align: center; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+        .model-stats-row { display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; }
+        .model-stat-item { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.3rem; }
+        .model-stat-name { color: var(--text-light); font-weight: 500; }
+        .model-stat-count { color: var(--blue); }
+
+        .cornell-container { margin-top: 2rem; }
+        .section-label {
+            font-family: var(--font-mono); font-size: 0.75rem; color: var(--blue);
+            text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 0.75rem;
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+        .section-label::before { content: '§'; color: var(--primary); }
+        .cornell-table {
+            display: grid; grid-template-columns: 1fr 3fr;
+            border: 1px solid var(--border); background: var(--bg); box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .cornell-header {
+            grid-column: 1 / -1; background: var(--blue); color: white;
+            padding: 0.75rem 1rem; font-family: var(--font-mono); font-size: 0.8rem;
+            text-transform: uppercase; letter-spacing: 0.1em;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .cornell-row { display: contents; }
+        .cornell-word, .cornell-def { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }
+        .cornell-word {
+            font-family: var(--font-serif); font-weight: 600; color: var(--primary);
+            border-right: 1px solid var(--border); font-size: 1.05rem;
+            background: var(--bg-light); letter-spacing: 0.02em;
+        }
+        .cornell-def { font-family: var(--font-serif); color: var(--text); font-size: 1rem; }
+        .cornell-def .lemma { color: var(--text-muted); font-style: italic; }
+        .cornell-def .zh { color: var(--primary); font-weight: 700; font-size: 1.1rem; }
+        .cornell-def .en { color: var(--blue); font-size: 0.95rem; }
+        .cornell-row:hover .cornell-word, .cornell-row:hover .cornell-def { background: var(--bg-alt); }
+        .empty-state { text-align: center; padding: 3rem; color: var(--text-muted); font-style: italic; }
+
+        .time-filter { display: flex; justify-content: center; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+        .filter-btn {
+            background: transparent; border: 1px solid var(--border); color: var(--text-muted);
+            font-family: var(--font-mono); font-size: 0.75rem; padding: 0.5rem 1rem;
+            cursor: pointer; transition: all 0.3s ease;
+        }
+        .filter-btn:hover { border-color: var(--blue); color: var(--blue); }
+        .filter-btn.active { background: var(--blue); color: white; border-color: var(--blue); }
+
+        .freq-table { width: 100%; border-collapse: collapse; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .freq-table th {
+            background: var(--blue); color: white; font-family: var(--font-mono); font-size: 0.75rem;
+            text-transform: uppercase; letter-spacing: 0.1em; padding: 0.75rem 1rem; text-align: left;
+        }
+        .freq-table td { padding: 0.6rem 1rem; border-bottom: 1px solid var(--border); font-family: var(--font-mono); font-size: 0.85rem; background: var(--bg); }
+        .freq-table tr:hover td { background: var(--bg-alt); }
+        .freq-table .rank { color: var(--text-muted); width: 50px; }
+        .freq-table .word { color: var(--primary); font-weight: 500; }
+        .freq-table .count { color: var(--text); text-align: right; }
+        .freq-bar { height: 4px; background: linear-gradient(90deg, var(--primary), var(--primary-light)); margin-top: 4px; border-radius: 2px; }
+
+        /* ── Page 3: Prüfung ── */
+        .pruefung-wrap {
+            display: flex; flex-direction: column; align-items: center;
+            gap: 2rem; padding-top: 1rem;
+        }
+        .rt-card {
+            width: 100%; max-width: 520px;
+            border: 1px solid var(--border);
+            background: var(--bg); box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+            display: flex; flex-direction: column; align-items: center;
+            padding: 3.5rem 2rem 2.5rem; position: relative; min-height: 260px;
+            justify-content: center;
+        }
+        .rt-word {
+            font-family: var(--font-serif); font-size: 3rem; font-weight: 600;
+            color: var(--primary); letter-spacing: 0.04em; text-align: center;
+            transition: opacity 0.15s ease;
+        }
+        .rt-word.flash { opacity: 0; }
+        .rt-sub {
+            font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.12em; margin-top: 0.5rem;
+        }
+        .rt-answer {
+            margin-top: 1.5rem; text-align: center;
+            font-family: var(--font-serif); font-size: 1.1rem; color: var(--text);
+            min-height: 1.6rem; opacity: 0; transition: opacity 0.2s ease;
+        }
+        .rt-answer.visible { opacity: 1; }
+        .rt-answer .zh { color: var(--primary); font-weight: 700; font-size: 1.2rem; }
+        .rt-answer .en { color: var(--blue); font-size: 0.95rem; }
+        .rt-ms {
+            position: absolute; top: 1rem; right: 1.2rem;
+            font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted);
+        }
+        .rt-ms .ms-val { color: var(--blue); font-weight: 600; }
+        .rt-controls { display: flex; gap: 1rem; margin-top: 1.5rem; }
+        .rt-btn {
+            height: 44px; padding: 0 2rem;
+            font-family: var(--font-mono); font-size: 0.8rem;
+            text-transform: uppercase; letter-spacing: 0.1em;
+            cursor: pointer; border: 1px solid; transition: all 0.2s ease;
+        }
+        .rt-btn-main {
+            background: var(--blue); border-color: var(--blue); color: white; min-width: 160px;
+        }
+        .rt-btn-main:hover { background: var(--blue-light); }
+        .rt-btn-main:active { transform: scale(0.97); }
+        .rt-btn-skip {
+            background: transparent; border-color: var(--border); color: var(--text-muted);
+        }
+        .rt-btn-skip:hover { border-color: var(--text-muted); color: var(--text); }
+        .rt-btn-undo {
+            background: transparent; border-color: var(--accent); color: var(--accent);
+        }
+        .rt-btn-undo:hover { background: var(--accent); color: white; }
+        .rt-progress {
+            width: 100%; max-width: 520px;
+            display: flex; flex-direction: column; gap: 0.4rem;
+        }
+        .rt-progress-bar-wrap {
+            height: 3px; background: var(--bg-alt); width: 100%;
+        }
+        .rt-progress-bar {
+            height: 100%; background: var(--primary);
+            transition: width 0.3s ease; width: 0%;
+        }
+        .rt-progress-label {
+            font-family: var(--font-mono); font-size: 0.68rem;
+            color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em;
+            display: flex; justify-content: space-between;
+        }
+        .rt-stats-row {
+            width: 100%; max-width: 520px;
+            display: grid; grid-template-columns: repeat(5, 1fr);
+            border: 1px solid var(--border); background: var(--bg-light);
+        }
+        .rt-stat {
+            text-align: center; padding: 0.8rem 0.5rem;
+            border-right: 1px solid var(--border);
+        }
+        .rt-stat:last-child { border-right: none; }
+        .rt-stat-val { font-family: var(--font-mono); font-size: 1.3rem; color: var(--blue); }
+        .rt-stat-lbl { font-family: var(--font-mono); font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
+        .rt-options {
+            width: 100%; max-width: 520px;
+            display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center;
+        }
+        .rt-opt-btn {
+            background: transparent; border: 1px solid var(--border);
+            color: var(--text-light); font-family: var(--font-mono); font-size: 0.72rem;
+            padding: 0.35rem 0.9rem; cursor: pointer; transition: all 0.2s ease;
+            text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .rt-opt-btn:hover { border-color: var(--blue); color: var(--blue); }
+        .rt-opt-btn.active { background: var(--blue); border-color: var(--blue); color: white; }
+        .rt-empty {
+            font-family: var(--font-serif); font-style: italic;
+            color: var(--text-muted); text-align: center; padding: 3rem; font-size: 1.1rem;
+        }
+
+        /* ── Page 4: Bekannt (personal known) ── */
+        .bekannt-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 0.75rem; margin-top: 1.5rem;
+        }
+        .bekannt-card {
+            border: 1px solid var(--border); background: var(--bg-light);
+            padding: 0.75rem 1rem; display: flex; flex-direction: column; gap: 0.2rem;
+            position: relative;
+        }
+        .bekannt-word { font-family: var(--font-serif); font-weight: 600; color: var(--text-muted); font-size: 1rem; }
+        .bekannt-meta { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-muted); }
+        .bekannt-meta .reason-rt { color: var(--blue); }
+        .bekannt-meta .reason-manual { color: var(--accent); }
+        .bekannt-restore {
+            position: absolute; top: 0.5rem; right: 0.6rem;
+            background: transparent; border: none; color: var(--border);
+            cursor: pointer; font-size: 0.9rem; transition: color 0.2s;
+        }
+        .bekannt-restore:hover { color: var(--primary); }
+        .bekannt-controls {
+            display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center;
+        }
+        .bekannt-mode-toggle {
+            display: flex; gap: 0; border: 1px solid var(--border);
+        }
+        .mode-btn {
+            background: transparent; border: none; border-right: 1px solid var(--border);
+            color: var(--text-muted); font-family: var(--font-mono); font-size: 0.72rem;
+            padding: 0.4rem 1rem; cursor: pointer; transition: all 0.2s ease;
+            text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .mode-btn:last-child { border-right: none; }
+        .mode-btn.active { background: var(--blue); color: white; }
+        .bekannt-search {
+            flex: 1; height: 32px; background: var(--bg); border: 1px solid var(--border);
+            color: var(--text); font-family: var(--font-mono); font-size: 0.8rem;
+            padding: 0 10px; min-width: 120px;
+        }
+        .bekannt-search:focus { outline: none; border-color: var(--blue); }
+
+        /* ── Cornell降权样式 ── */
+        .cornell-row.known .cornell-word { color: var(--text-muted); font-weight: 400; }
+        .cornell-row.known .cornell-def { color: var(--text-muted); }
+        .cornell-row.known .cornell-word,
+        .cornell-row.known .cornell-def { background: var(--bg); }
+
+        /* ── Lese-Modus (V3) ── */
+        .lese-layout {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            gap: 0;
+            min-height: calc(100vh - 52px - 58px - 48px);
+            border-top: 1px solid var(--border);
+        }
+        .lese-left {
+            border-right: 1px solid var(--border);
+            padding: 1.5rem 1rem;
+            display: flex; flex-direction: column; align-items: center; gap: 1rem;
+            background: var(--bg-light);
+            position: sticky; top: 106px; align-self: start;
+            max-height: calc(100vh - 160px); overflow-y: auto;
+        }
+        .lese-center {
+            padding: 2rem 2.5rem;
+            font-family: var(--font-serif); font-size: 1.1rem; line-height: 1.9;
+            color: var(--text);
+        }
+        .lese-text-content {
+            max-width: 680px; margin: 0 auto;
+        }
+        .lese-right {
+            border-left: 1px solid var(--border);
+            background: var(--bg-light);
+            position: sticky; top: 106px; align-self: start;
+            max-height: calc(100vh - 160px); overflow-y: auto;
+        }
+        .lese-right .cornell-table {
+            box-shadow: none; border: none; border-bottom: 1px solid var(--border);
+            display: block;
+        }
+        .lese-right .cornell-header {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 0.72rem; padding: 0.6rem 0.8rem;
+        }
+        .lese-right .cornell-row {
+            display: block;
+            border-bottom: 1px solid var(--border);
+            padding: 0.55rem 0.8rem;
+            transition: background 0.15s;
+        }
+        .lese-right .cornell-row:hover { background: var(--bg-alt); }
+        .lese-right .cornell-word {
+            font-family: var(--font-serif); font-weight: 600; color: var(--primary);
+            font-size: 1rem; border: none; background: none; padding: 0;
+            letter-spacing: 0.02em; display: inline;
+        }
+        .lese-right .cornell-def {
+            display: block; padding: 0.15rem 0 0 0;
+            border: none; background: none;
+        }
+        .lese-right .cornell-def .lemma { color: var(--text-muted); font-style: italic; font-size: 0.82rem; }
+        .lese-right .cornell-def .zh { color: var(--primary); font-weight: 700; font-size: 0.95rem; }
+        .lese-right .cornell-def .en { color: var(--blue); font-size: 0.82rem; }
+        .lese-right .cornell-row.known .cornell-word { color: var(--text-muted); font-weight: 400; }
+        .lese-right .cornell-row.known .cornell-def { color: var(--text-muted); }
+        .lese-right .empty-state { font-size: 0.85rem; padding: 2rem; text-align: center; }
+
+        /* Timer */
+        .lese-timer-display {
+            font-family: var(--font-mono); font-size: 2.2rem; font-weight: 500;
+            color: var(--blue); letter-spacing: 0.05em; text-align: center;
+            transition: color 0.3s ease;
+        }
+        .lese-timer-display.overtime { color: var(--primary); }
+        .lese-timer-label {
+            font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.12em; text-align: center;
+        }
+        .lese-timer-bar-wrap {
+            width: 100%; height: 4px; background: var(--bg-alt); border-radius: 2px;
+        }
+        .lese-timer-bar {
+            height: 100%; background: var(--blue); border-radius: 2px;
+            transition: width 0.5s linear, background 0.3s;
+            width: 100%;
+        }
+        .lese-timer-bar.overtime { background: var(--primary); }
+        .lese-timer-stats {
+            width: 100%; border: 1px solid var(--border); background: var(--bg);
+        }
+        .lese-timer-stat {
+            padding: 0.5rem 0.8rem; border-bottom: 1px solid var(--border); text-align: center;
+        }
+        .lese-timer-stat:last-child { border-bottom: none; }
+        .lese-timer-stat-val { font-family: var(--font-mono); font-size: 1.1rem; color: var(--blue); }
+        .lese-timer-stat-lbl { font-family: var(--font-mono); font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+
+        /* Test-Auswahl prompt */
+        .lese-test-prompt {
+            width: 100%; border: 1px solid var(--border); background: var(--bg);
+            padding: 1rem 0.75rem; display: flex; flex-direction: column; gap: 0.6rem; align-items: center;
+        }
+        .lese-test-prompt-label {
+            font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.12em; text-align: center;
+        }
+        .lese-test-btn {
+            width: 100%; padding: 0.5rem 0; background: var(--blue); border: none;
+            color: white; font-family: var(--font-mono); font-size: 0.75rem;
+            text-transform: uppercase; letter-spacing: 0.08em; cursor: pointer;
+            transition: background 0.2s;
+        }
+        .lese-test-btn:hover { background: var(--blue-light); }
+        .lese-skip-btn {
+            background: transparent; border: 1px solid var(--border); color: var(--text-muted);
+            font-family: var(--font-mono); font-size: 0.65rem; padding: 0.3rem 0.8rem;
+            cursor: pointer; text-transform: uppercase; letter-spacing: 0.08em;
+            transition: all 0.2s;
+        }
+        .lese-skip-btn:hover { border-color: var(--text-muted); color: var(--text); }
+
+        /* Hidden text overlay for timed test */
+        .lese-text-hidden { filter: blur(6px); user-select: none; pointer-events: none; transition: filter 0.4s; }
+        .lese-text-reveal { filter: none; transition: filter 0.3s; }
+
+        /* Reading stats summary */
+        .lese-summary {
+            border: 1px solid var(--border); background: var(--bg);
+            padding: 0.75rem; display: none; flex-direction: column; gap: 0.4rem;
+            width: 100%;
+        }
+        .lese-summary.visible { display: flex; }
+        .lese-summary-title {
+            font-family: var(--font-mono); font-size: 0.65rem; color: var(--blue);
+            text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 0.2rem;
+        }
+        .lese-summary-row {
+            display: flex; justify-content: space-between;
+            font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-light);
+        }
+        .lese-summary-row span:last-child { color: var(--blue); font-weight: 500; }
+        .lese-ratio-good { color: #28a745 !important; }
+        .lese-ratio-ok { color: var(--accent) !important; }
+        .lese-ratio-slow { color: var(--primary) !important; }
+
+        /* Language toggle in lese */
+        .lese-lang-toggle {
+            display: flex; gap: 0; border: 1px solid var(--border);
+        }
+        .lese-lang-btn {
+            background: transparent; border: none; border-right: 1px solid var(--border);
+            color: var(--text-muted); font-family: var(--font-mono); font-size: 0.65rem;
+            padding: 0.3rem 0.7rem; cursor: pointer; transition: all 0.2s;
+            text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .lese-lang-btn:last-child { border-right: none; }
+        .lese-lang-btn.active { background: var(--blue); color: white; }
+
+        @media (max-width: 768px) {
+            .cornell-table { grid-template-columns: 1fr; }
+            .cornell-word { border-right: none; border-bottom: none; padding-bottom: 0.25rem; }
+            .cornell-def { padding-top: 0.25rem; }
+            .page-title { font-size: 1.8rem; }
+            .bottom-bar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 6px; }
+            .bottom-bar input { flex: 1 1 40%; }
+        }
+        .copy-feedback {
+            position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%);
+            background: var(--blue); color: white; padding: 0.75rem 1.5rem;
+            font-family: var(--font-mono); font-size: 0.8rem; border-radius: 4px;
+            opacity: 0; transition: opacity 0.3s ease; pointer-events: none;
+        }
+        .copy-feedback.show { opacity: 1; }
+    </style>
+</head>
+<body>
+    <div class="marquee-container">
+        <div class="marquee">
+            <div class="marquee-content" id="marquee-content"><span class="marquee-item">Toccata and Fuga in C Major V3.0 — Lese-Modus aktiv</span></div>
+            <div class="marquee-content" id="marquee-content-duplicate"><span class="marquee-item">Toccata and Fuga in C Major V3.0 — Lese-Modus aktiv</span></div>
+        </div>
+    </div>
+    <nav class="nav">
+        <button class="nav-btn active" data-page="1">Eingabe</button>
+        <button class="nav-btn" data-page="5">Lesen</button>
+        <button class="nav-btn" data-page="2">Frequenz</button>
+        <button class="nav-btn" data-page="3">Prüfung</button>
+        <button class="nav-btn" data-page="4">Bekannt</button>
+    </nav>
+    <div class="container">
+        <!-- Page 1: Eingabe -->
+        <div class="page active" id="page1">
+            <h1 class="page-title">Toccata and Fuga in C Major</h1>
+            <div class="stats-row">
+                <div class="stat-badge"><div class="stat-value" id="total-tokens">0</div><div class="stat-label">Token</div></div>
+                <div class="stat-badge"><div class="stat-value" id="total-types">0</div><div class="stat-label">Types</div></div>
+                <div class="stat-badge"><div class="stat-value" id="current-ttr">-</div><div class="stat-label">TTR</div></div>
+            </div>
+            <div class="model-stats"><div class="model-stats-row" id="model-stats-row"><div class="model-stat-item"><span class="model-stat-name">-</span><span class="model-stat-count">0</span></div></div></div>
+            <div class="cornell-container">
+                <label class="section-label">Wortliste (Cornell-Stil)</label>
+                <div class="cornell-table" id="cornell-table">
+                    <div class="cornell-header">
+                        <span>Vokabular</span>
+                        <div style="display:flex;align-items:center;gap:1rem;">
+                            <button class="sort-toggle active" id="sort-toggle" title="排序"><span id="sort-mode-text">输入顺序</span></button>
+                            <span id="word-count">0 Wörter</span>
+                        </div>
+                    </div>
+                    <div class="cornell-row"><div class="cornell-word empty-state" style="grid-column:1/-1;border-right:none;">Benutzen Sie die Leiste unten</div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page 2: Frequenz -->
+        <div class="page" id="page2">
+            <h1 class="page-title">Wortfrequenz</h1>
+            <div class="time-filter" id="freq-filter">
+                <button class="filter-btn" data-filter="current-decade">本旬</button>
+                <button class="filter-btn" data-filter="current-month">本月</button>
+                <button class="filter-btn" data-filter="recent-3">近3月</button>
+                <button class="filter-btn" data-filter="recent-6">近6月</button>
+                <button class="filter-btn" data-filter="current-year">本年</button>
+                <button class="filter-btn active" data-filter="all">全部</button>
+            </div>
+            <table class="freq-table"><thead><tr><th>#</th><th>Wort</th><th>Häufigkeit</th></tr></thead><tbody id="freq-tbody"><tr><td colspan="3" class="empty-state">Noch keine Daten</td></tr></tbody></table>
+        </div>
+        <!-- Page 3: Prüfung (RT Flashcards) -->
+        <div class="page" id="page3">
+            <h1 class="page-title">Prüfung</h1>
+            <div class="pruefung-wrap">
+                <div class="rt-options" id="rt-options">
+                    <button class="rt-opt-btn active" data-filter="all">全部词汇</button>
+                    <button class="rt-opt-btn" data-filter="new">仅新词</button>
+                    <button class="rt-opt-btn" data-filter="review">复习已掌握</button>
+                    <span style="display:flex;align-items:center;gap:0.4rem;margin-left:0.5rem;">
+                        <span style="font-family:var(--font-mono);font-size:0.68rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;">绝对上限</span>
+                        <input id="rt-abs-threshold" type="number" value="800" min="200" max="3000" step="50"
+                            style="width:64px;height:28px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:0.78rem;padding:0 6px;text-align:center;">
+                        <span style="font-family:var(--font-mono);font-size:0.68rem;color:var(--text-muted);">ms</span>
+                    </span>
+                    <span style="display:flex;align-items:center;gap:0.4rem;margin-left:0.5rem;">
+                        <span style="font-family:var(--font-mono);font-size:0.68rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;">最低次数</span>
+                        <input id="rt-min-freq" type="number" value="10" min="1" max="100" step="1"
+                            style="width:52px;height:28px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:0.78rem;padding:0 6px;text-align:center;"
+                            onchange="initPruefung()">
+                        <span style="font-family:var(--font-mono);font-size:0.68rem;color:var(--text-muted);">次</span>
+                    </span>
+                </div>
+                <div class="rt-progress" id="rt-progress">
+                    <div class="rt-progress-label">
+                        <span id="rt-progress-text">— / —</span>
+                        <span id="rt-q1-label">Q1: —</span>
+                    </div>
+                    <div class="rt-progress-bar-wrap">
+                        <div class="rt-progress-bar" id="rt-progress-bar"></div>
+                    </div>
+                </div>
+                <div class="rt-stats-row" id="rt-stats-row">
+                    <div class="rt-stat"><div class="rt-stat-val" id="rt-s-done">0</div><div class="rt-stat-lbl">Done</div></div>
+                    <div class="rt-stat"><div class="rt-stat-val" id="rt-s-fast">0</div><div class="rt-stat-lbl">≤Q1</div></div>
+                    <div class="rt-stat"><div class="rt-stat-val" id="rt-s-live">—</div><div class="rt-stat-lbl">本次ms</div></div>
+                    <div class="rt-stat"><div class="rt-stat-val" id="rt-s-avg">—</div><div class="rt-stat-lbl">Ø ms</div></div>
+                    <div class="rt-stat"><div class="rt-stat-val" id="rt-s-known">0</div><div class="rt-stat-lbl">Bekannt↑</div></div>
+                </div>
+                <div class="rt-card" id="rt-card">
+                    <div class="rt-ms" id="rt-ms"></div>
+                    <div class="rt-word" id="rt-word">—</div>
+                    <div class="rt-sub" id="rt-sub">bereit?</div>
+                    <div class="rt-answer" id="rt-answer"></div>
+                </div>
+                <div class="rt-controls">
+                    <button class="rt-btn rt-btn-skip" id="rt-skip-btn">Überspringen</button>
+                    <button class="rt-btn rt-btn-main" id="rt-main-btn">Start</button>
+                    <button class="rt-btn rt-btn-undo" id="rt-undo-btn" style="display:none">↩ Widerrufen</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page 4: Bekannt (Personal Known) -->
+        <div class="page" id="page4">
+            <h1 class="page-title">Bekannt</h1>
+            <div class="container" style="padding-top:0">
+                <div class="bekannt-controls">
+                    <div class="bekannt-mode-toggle">
+                        <button class="mode-btn active" data-mode="grau">灰色降权</button>
+                        <button class="mode-btn" data-mode="stopword">视为停用词</button>
+                    </div>
+                    <input class="bekannt-search" id="bekannt-search" placeholder="筛选词汇…" type="text">
+                    <span style="display:flex;align-items:center;gap:0.4rem;">
+                        <span style="font-family:var(--font-mono);font-size:0.68rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;">衰减</span>
+                        <input id="bk-decay-days" type="number" value="30" min="7" max="365" step="7"
+                            style="width:52px;height:28px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:0.78rem;padding:0 6px;text-align:center;">
+                        <span style="font-family:var(--font-mono);font-size:0.68rem;color:var(--text-muted);">天</span>
+                    </span>
+                    <button class="rt-btn rt-btn-skip" id="bekannt-clear-btn" style="font-size:0.68rem">清空全部</button>
+                </div>
+                <div class="stats-row" style="margin-bottom:1rem">
+                    <div class="stat-badge"><div class="stat-value" id="bk-total">0</div><div class="stat-label">已掌握</div></div>
+                    <div class="stat-badge"><div class="stat-value" id="bk-rt">0</div><div class="stat-label">RT自动</div></div>
+                    <div class="stat-badge"><div class="stat-value" id="bk-manual">0</div><div class="stat-label">手动添加</div></div>
+                </div>
+                <div class="bekannt-grid" id="bekannt-grid"></div>
+            </div>
+        </div>
+    </div><!-- /container -->
+
+    <!-- Page 5: Lesen (V3 Reading Mode) — full-width, outside .container -->
+    <div class="page" id="page5">
+            <div class="lese-layout" id="lese-layout">
+                <!-- LEFT: Timer + Controls -->
+                <div class="lese-left" id="lese-left">
+                    <div class="lese-timer-label" id="lese-timer-label">Lesezeit</div>
+                    <div class="lese-timer-display" id="lese-timer-display">—:——</div>
+                    <div class="lese-timer-bar-wrap"><div class="lese-timer-bar" id="lese-timer-bar"></div></div>
+
+                    <!-- Word count + page estimate -->
+                    <div class="lese-timer-stats" id="lese-word-stats" style="display:none">
+                        <div class="lese-timer-stat">
+                            <div class="lese-timer-stat-val" id="lese-stat-words">—</div>
+                            <div class="lese-timer-stat-lbl">Wörter</div>
+                        </div>
+                        <div class="lese-timer-stat">
+                            <div class="lese-timer-stat-val" id="lese-stat-pages">—</div>
+                            <div class="lese-timer-stat-lbl">Seiten (11pt/A4)</div>
+                        </div>
+                    </div>
+
+                    <!-- Language selector -->
+                    <div class="lese-lang-toggle">
+                        <button class="lese-lang-btn active" data-lang="de">DE</button>
+                        <button class="lese-lang-btn" data-lang="en">EN</button>
+                    </div>
+
+                    <!-- Test prompt (shown before reading starts) -->
+                    <div class="lese-test-prompt" id="lese-test-prompt">
+                        <div class="lese-test-prompt-label">Lesetest?</div>
+                        <button class="lese-test-btn" id="lese-test-start-btn">▶ Testen &amp; Timer starten</button>
+                        <button class="lese-skip-btn" id="lese-test-skip-btn">Ohne Test lesen</button>
+                    </div>
+
+                    <!-- Timer stats (shown after reading) -->
+                    <div class="lese-summary" id="lese-summary">
+                        <div class="lese-summary-title">Ergebnis</div>
+                        <div class="lese-summary-row"><span>Wörter</span><span id="lese-s-words">—</span></div>
+                        <div class="lese-summary-row"><span>Schätzzeit</span><span id="lese-s-est">—</span></div>
+                        <div class="lese-summary-row"><span>Tatsächlich</span><span id="lese-s-actual">—</span></div>
+                        <div class="lese-summary-row"><span>Verhältnis</span><span id="lese-s-ratio">—</span></div>
+                        <div class="lese-summary-row"><span>Wörter/min</span><span id="lese-s-wpm">—</span></div>
+                    </div>
+
+                    <!-- Stop button -->
+                    <button class="lese-skip-btn" id="lese-stop-btn" style="display:none;width:100%;text-align:center;">⏹ Stopp</button>
+                </div>
+
+                <!-- CENTER: Article text -->
+                <div class="lese-center">
+                    <div class="lese-text-content">
+                        <div id="lese-text-body" style="white-space:pre-wrap;"></div>
+                        <div id="lese-empty-hint" style="color:var(--text-muted);font-style:italic;text-align:center;padding:4rem 0;font-size:1rem;">
+                            Fügen Sie Text in die Leiste unten ein und drücken Sie ⎘ —<br>
+                            dann navigieren Sie zu diesem Tab.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RIGHT: Cornell vocab panel -->
+                <div class="lese-right" id="lese-cornell-panel">
+                    <div class="cornell-table" id="lese-cornell-table">
+                        <div class="cornell-header">
+                            <span>Vokabular</span>
+                            <span id="lese-word-count" style="font-size:0.72rem;">—</span>
+                        </div>
+                        <div class="cornell-row"><div class="cornell-word empty-state" style="grid-column:1/-1;border-right:none;font-size:0.85rem;">Noch nicht verarbeitet</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    <div class="bottom-bar">
+        <input type="text" id="text-input" placeholder="Text eingeben...">
+        <button class="bar-btn" id="process-btn" title="Verarbeiten & Kopieren">⎘</button>
+        <div class="divider"></div>
+        <textarea id="llm-input" placeholder="LLM Ergebnis..." rows="1"></textarea>
+        <button class="bar-btn" id="parse-llm-btn" title="Einlesen">↵</button>
+    </div>
+    <div class="copy-feedback" id="copy-feedback">Kopiert!</div>
+
+<script>
+// ============================================
+// DATA STORES
+// ============================================
+let currentSortMode = 'input';
+const vocabStore = new Map();
+const decadeStats = new Map();
+const modelsDict = [];
+const rawTexts = new Map();
+const personalKnown = new Map(); // word → { addedAt, reason:'rt'|'manual', rtAvg }
+let knownDisplayMode = 'grau'; // 'grau' | 'stopword'
+
+const stopwordsLower = new Set([
+    'der','die','das','den','dem','des','ein','eine','einer','einem','einen','eines',
+    'und','oder','aber','denn','sondern','wenn','weil','dass','ob','als','wie',
+    'ich','du','er','sie','es','wir','ihr','mich','dich','sich','uns','euch',
+    'mir','dir','ihm','ihr','ihnen','mein','dein','sein','unser','euer',
+    'ist','sind','war','waren','bin','bist','sein','seid','hat','haben','hatte','hatten',
+    'wird','werden','wurde','wurden','kann','können','konnte','konnten',
+    'muss','müssen','musste','mussten','soll','sollen','sollte','sollten',
+    'will','wollen','wollte','wollten','darf','dürfen','durfte','durften',
+    'nicht','kein','keine','keiner','keinem','keinen','keines',
+    'mit','bei','von','zu','nach','aus','für','über','unter','zwischen',
+    'vor','hinter','neben','an','auf','in','im','am','zum','zur','vom','beim',
+    'durch','gegen','ohne','um','bis','seit','während','wegen','trotz',
+    'hier','dort','da','wo','wohin','woher','wann','warum','weshalb',
+    'was','wer','wen','wem','wessen','welch','welche','welcher','welches',
+    'dieser','diese','dieses','diesem','diesen','jener','jene','jenes','jenem','jenen',
+    'so','also','doch','noch','schon','nur','auch','sehr','mehr','viel','wenig',
+    'ganz','immer','nie','oft','manchmal','selten','fast','etwa','ungefähr',
+    'ja','nein','doch','vielleicht','wohl','bestimmt','sicher','wahrscheinlich',
+    'dann','danach','davor','dabei','damit','dafür','dagegen','darüber','darunter',
+    'nun','jetzt','heute','gestern','morgen','bald','gleich','sofort',
+    'man','etwas','nichts','alles','alle','jeder','jede','jedes','jedem','jeden',
+    'andere','anderer','anderes','anderem','anderen','einige','einiger','einiges',
+    'mehrere','manche','mancher','manches','manchem','manchen',
+    'selbst','selber','eigen','eigene','eigener','eigenes','eigenem','eigenen','the',
+    '\'', "\"", "t","s","a","an","of","on","in","to","from","with","as","at","by","for",
+    "up","down","out","over","under","again","further","then","once","here","there","when",
+    "where","why","how","all","any","some","one","two","three","four","five","six","seven","eight",
+    "nine","ten","is","are","that","this","these","those","which","who","whom","whose","what","why",
+    "how","all","any","some","many","much","few","little","more","less","most","least","better","worse",
+]);
+const germanLetterPattern = /[a-zA-ZäöüÄÖÜß]/;
+const zodiacMonths = ['鼠','牛','虎','兔','龙','蛇','马','羊','猴','鸡','狗','猪'];
+const decadeNames = ['上','中','下'];
+
+// ============================================
+// 旬次系统
+// ============================================
+function getDecadeKey(date) {
+    const y=date.getFullYear(),m=date.getMonth(),d=date.getDate();
+    return `${String(y).slice(-2)}${zodiacMonths[m]}${decadeNames[d<=10?0:d<=20?1:2]}`;
+}
+function getCurrentDecadeKey() { return getDecadeKey(new Date()); }
+function getDecadesSince(startDK, count=36) {
+    const ds=[],ck=getCurrentDecadeKey();
+    let y=2000+parseInt(startDK.slice(0,2)),m=zodiacMonths.indexOf(startDK.slice(2,3)),d=decadeNames.indexOf(startDK.slice(3,4));
+    for(let i=0;i<count;i++){const k=`${String(y).slice(-2)}${zodiacMonths[m]}${decadeNames[d]}`;ds.push(k);if(k===ck)break;d++;if(d>2){d=0;m++;if(m>11){m=0;y++;}}}
+    return ds;
+}
+function getAllSortedDecades(){return Array.from(decadeStats.keys()).sort((a,b)=>{const ya=parseInt(a.slice(0,2)),yb=parseInt(b.slice(0,2));if(ya!==yb)return ya-yb;const ma=zodiacMonths.indexOf(a.slice(2,3)),mb=zodiacMonths.indexOf(b.slice(2,3));if(ma!==mb)return ma-mb;return decadeNames.indexOf(a.slice(3,4))-decadeNames.indexOf(b.slice(3,4));});}
+function getDecadeFilter(ft){const cd=getCurrentDecadeKey(),now=new Date(),cy=now.getFullYear(),cm=now.getMonth();switch(ft){case'current-decade':return[cd];case'current-month':{const ys=String(cy).slice(-2),z=zodiacMonths[cm];return[`${ys}${z}上`,`${ys}${z}中`,`${ys}${z}下`];}case'recent-3':return getRecentDecades(9);case'recent-6':return getRecentDecades(18);case'current-year':return getAllDecadesInYear(cy);default:return Array.from(decadeStats.keys());}}
+function getRecentDecades(c){const a=getAllSortedDecades(),ck=getCurrentDecadeKey(),ci=a.indexOf(ck);if(ci===-1)return a.slice(-c);return a.slice(Math.max(0,ci-c+1),ci+1);}
+function getAllDecadesInYear(y){const ys=String(y).slice(-2),ds=[];for(let m=0;m<12;m++){const z=zodiacMonths[m];ds.push(`${ys}${z}上`,`${ys}${z}中`,`${ys}${z}下`);}return ds;}
+function getModelIndex(m){let i=modelsDict.indexOf(m);if(i===-1){i=modelsDict.length;modelsDict.push(m);}return i;}
+
+function tokenize(text) {
+    let p=text.replace(/([a-zA-ZäöüÄÖÜß])-\s*\n\s*([a-zA-ZäöüÄÖÜß])/g,'$1$2');
+    p=p.replace(/([a-zA-ZäöüÄÖÜß])-\s+([a-zA-ZäöüÄÖÜß])/g,'$1$2');
+    let r='';for(const c of p){r+=germanLetterPattern.test(c)?c:' ';}
+    return r.split(/\s+/).filter(t=>{
+        if(!t.length)return false;
+        if(stopwordsLower.has(t.toLowerCase()))return false;
+        if(knownDisplayMode==='stopword'&&personalKnown.has(t))return false;
+        return true;
+    });
+}
+
+// ============================================
+// PERSISTENCE (V2.1 compatible)
+// ============================================
+function saveToLocalStorage(){
+    const n=new Date().toISOString();
+    // Serialize vocabStore with rt data
+    const vocabObj={};
+    vocabStore.forEach((info,w)=>{ vocabObj[w]=info; });
+    const d={version:"2.3",exportDate:n,lastSaved:n,models:modelsDict,
+        vocab:vocabObj,decades:Object.fromEntries(decadeStats),
+        rawTexts:Object.fromEntries(rawTexts),
+        personalKnown:Object.fromEntries(personalKnown),
+        knownDisplayMode};
+    localStorage.setItem('fugaVocabs',JSON.stringify(d));
+}
+function loadFromLocalStorage(){
+    try{const s=localStorage.getItem('fugaVocabs');if(!s)return;const d=JSON.parse(s);
+    if(!d.version||d.version==="1.0"||Array.isArray(d.vocab)){const md=migrateFromV1ToV2(d);loadV2Data(md);saveToLocalStorage();}
+    else{loadV2Data(d);}}catch(e){console.error('Load error:',e);}
+}
+function loadV2Data(d){
+    modelsDict.length=0;modelsDict.push(...(d.models||[]));
+    vocabStore.clear();Object.entries(d.vocab||{}).forEach(([w,i])=>{
+        vocabStore.set(w,i);
+        // rebuild rtMetaCache from persisted meta
+        if(i.meta)rtMetaCache.set(w,i.meta);
+    });
+    decadeStats.clear();Object.entries(d.decades||{}).forEach(([dk,s])=>{decadeStats.set(dk,{tokens:s.tokens||0,types:s.types||0,ttr:s.ttr||0});});
+    rawTexts.clear();Object.entries(d.rawTexts||{}).forEach(([dk,texts])=>rawTexts.set(dk,texts));
+    personalKnown.clear();Object.entries(d.personalKnown||{}).forEach(([w,v])=>personalKnown.set(w,v));
+    knownDisplayMode=d.knownDisplayMode||'grau';
+}
+function migrateFromV1ToV2(od){
+    const nm=[],nv={},nd={};const mm=new Map();
+    const ve=Array.isArray(od.vocab)?od.vocab:Object.entries(od.vocab||{});
+    ve.forEach(e=>{const[w,i]=Array.isArray(e)?e:[e[0],e[1]];if(!i)return;
+    if(i.occurrences)i.occurrences.forEach(o=>{const m=o.model||'Unknown';if(!mm.has(m)){mm.set(m,nm.length);nm.push(m);}});});
+    ve.forEach(e=>{const[w,i]=Array.isArray(e)?e:[e[0],e[1]];if(!i)return;const s={};
+    (i.occurrences||[]).forEach(o=>{const dk=getDecadeKey(new Date(o.date));const mi=mm.get(o.model||'Unknown');
+    if(!s[dk])s[dk]={total:0,m:Array(nm.length).fill(0)};s[dk].total++;if(mi!==undefined){while(s[dk].m.length<=mi)s[dk].m.push(0);s[dk].m[mi]++;}});
+    nv[w]={s};});
+    Object.values(nv).forEach(i=>{Object.entries(i.s||{}).forEach(([dk,ds])=>{if(!nd[dk])nd[dk]={tokens:0,types:new Set(),ttr:0};nd[dk].tokens+=ds.total;});});
+    Object.entries(nv).forEach(([w,i])=>{Object.keys(i.s||{}).forEach(dk=>{if(nd[dk])nd[dk].types.add(w);});});
+    Object.keys(nd).forEach(dk=>{const s=nd[dk];const tc=s.types.size;s.types=tc;s.ttr=s.tokens>0?tc/s.tokens:0;});
+    return{version:"2.1",exportDate:new Date().toISOString(),models:nm,vocab:nv,decades:nd,rawTexts:{}};
+}
+function updateDecadeStats(words,date=new Date()){
+    const dk=getDecadeKey(date);if(!decadeStats.has(dk))decadeStats.set(dk,{tokens:0,types:0,ttr:0});
+    const s=decadeStats.get(dk);s.tokens+=words.length;let tc=0;vocabStore.forEach(i=>{if(i&&i.s&&i.s[dk])tc++;});
+    s.types=tc;s.ttr=s.tokens>0?s.types/s.tokens:0;return dk;
+}
+
+// ============================================
+// UI FUNCTIONS
+// ============================================
+function toggleSortMode(){currentSortMode=currentSortMode==='input'?'alpha':'input';const st=document.getElementById('sort-toggle'),sm=document.getElementById('sort-mode-text');if(currentSortMode==='alpha'){st.classList.add('active');sm.textContent='字母排序';}else{st.classList.remove('active');sm.textContent='输入顺序';}if(currentEntries.length>0)renderCornellTable(currentEntries);}
+function updateModelStats(){const mc=new Map();vocabStore.forEach(i=>{if(!i||!i.s)return;Object.values(i.s).forEach(ds=>{if(ds.m)ds.m.forEach((c,mi)=>{if(c>0&&modelsDict[mi])mc.set(modelsDict[mi],(mc.get(modelsDict[mi])||0)+c);});});});const sorted=Array.from(mc.entries()).sort((a,b)=>b[1]-a[1]);const ct=document.getElementById('model-stats-row');if(sorted.length===0){ct.innerHTML='<div class="model-stat-item"><span class="model-stat-name">-</span><span class="model-stat-count">0</span></div>';}else{ct.innerHTML=sorted.map(([m,c])=>`<div class="model-stat-item"><span class="model-stat-name">${m}:</span><span class="model-stat-count">${c}</span></div>`).join('');}}
+function updateMarquee(){const ck=getCurrentDecadeKey();const tc=vocabStore.size;let tw=[];if(tc<100){const fm=new Map();vocabStore.forEach((i,w)=>{if(i&&i.s){let t=0;Object.values(i.s).forEach(d=>t+=d.total);fm.set(w,t);}});tw=Array.from(fm.entries()).sort((a,b)=>b[1]-a[1]).slice(0,25);}else{const cf=new Map(),hf=new Map();vocabStore.forEach((i,w)=>{if(!i||!i.s)return;let cc=0,hc=0;Object.entries(i.s).forEach(([dk,s])=>{if(dk===ck)cc+=s.total;else hc+=s.total;});if(cc>0)cf.set(w,cc);if(hc>0)hf.set(w,hc);});const h50=new Set(Array.from(hf.entries()).sort((a,b)=>b[1]-a[1]).slice(0,50).map(([w])=>w));tw=Array.from(cf.entries()).filter(([w])=>!h50.has(w)).sort((a,b)=>b[1]-a[1]).slice(0,25);}const mc=document.getElementById('marquee-content'),md=document.getElementById('marquee-content-duplicate');if(tw.length===0){const h='<span class="marquee-item">Willkommen zu Fuga Vocabs V2.2</span>';mc.innerHTML=h;md.innerHTML=h;}else{const h=tw.map(([w,f])=>`<span class="marquee-item">${w} <span class="freq">×${f}</span></span>`).join('');mc.innerHTML=h;md.innerHTML=h;}}
+function updateStats(){let tt=0;vocabStore.forEach(i=>{if(i&&i.s)Object.values(i.s).forEach(d=>tt+=d.total);});const ty=vocabStore.size;const ttr=tt>0?(ty/tt).toFixed(3):'-';document.getElementById('total-tokens').textContent=tt;document.getElementById('total-types').textContent=ty;document.getElementById('current-ttr').textContent=ttr;}
+
+// ============================================
+// NAVIGATION (updated for 4 pages)
+// ============================================
+document.querySelectorAll('.nav-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+        document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+        document.getElementById(`page${btn.dataset.page}`).classList.add('active');
+        if(btn.dataset.page==='2')updateFrequencyTable();
+        if(btn.dataset.page==='3')initPruefung();
+        if(btn.dataset.page==='4')renderBekannt();
+        if(btn.dataset.page==='5')initLeseMode();
+    });
+});
+
+// ============================================
+// RT HELPERS
+// ============================================
+function computeGlobalQ1(){
+    const avgs=[];
+    vocabStore.forEach((info,w)=>{
+        if(info.rt&&info.rt.trials&&info.rt.trials.length>=3)avgs.push(info.rt.avg);
+    });
+    if(avgs.length<4)return null;
+    avgs.sort((a,b)=>a-b);
+    return avgs[Math.floor(avgs.length*0.25)];
+}
+function addRtTrial(word, ms){
+    const info=vocabStore.get(word);if(!info)return;
+    if(!info.rt)info.rt={trials:[],avg:null};
+    info.rt.trials.push(ms);
+    const t=info.rt.trials;
+    info.rt.avg=Math.round(t.reduce((a,b)=>a+b,0)/t.length);
+}
+function getAbsThreshold(){ return parseInt(document.getElementById('rt-abs-threshold')?.value||800); }
+function checkAutoPromoteToKnown(word){
+    const info=vocabStore.get(word);
+    if(!info||!info.rt||info.rt.trials.length<3)return false;
+    if(personalKnown.has(word))return false;
+    const q1=computeGlobalQ1();
+    const absT=getAbsThreshold();
+    const qualifies=(q1&&info.rt.avg<q1)||(info.rt.avg<absT);
+    if(qualifies){
+        personalKnown.set(word,{
+            addedAt:getCurrentDecadeKey(),
+            reason:'rt',
+            rtAvg:info.rt.avg,
+            promotedAt:Date.now()
+        });
+        saveToLocalStorage();
+        return true;
+    }
+    return false;
+}
+
+// ============================================
+// PAGE 3: PRÜFUNG (RT Flashcard Engine)
+// ============================================
+let rtQueue=[], rtIndex=0, rtFilter='all', rtStartMs=0, rtActive=false;
+let rtSessionDone=0, rtSessionFast=0, rtSessionKnown=0, rtSessionMs=[];
+let rtLastWord=null, rtLastMs=null, rtUndoTimeout=null;
+
+function getRtMinFreq(){ return parseInt(document.getElementById('rt-min-freq')?.value||10); }
+function getWordTotalCount(info){
+    if(!info||!info.s)return 0;
+    let t=0; Object.values(info.s).forEach(d=>t+=d.total); return t;
+}
+function buildRtQueue(){
+    const minFreq=getRtMinFreq();
+    const all=[];
+    vocabStore.forEach((info,w)=>{
+        if(rtFilter==='new'&&personalKnown.has(w))return;
+        if(rtFilter==='review'&&!personalKnown.has(w))return;
+        // include if we have meta from either cache or persisted store
+        if(!rtMetaCache.has(w)&&!info.meta)return;
+        // minimum frequency gate
+        if(getWordTotalCount(info)<minFreq)return;
+        all.push(w);
+    });
+    for(let i=all.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[all[i],all[j]]=[all[j],all[i]];}
+    return all;
+}
+function findEntryMeta(word){
+    return rtMetaCache.get(word) || vocabStore.get(word)?.meta || null;
+}
+const rtMetaCache=new Map(); // word → {zh, en, lemma}  (session cache, rebuilt on load from meta)
+
+const RT_DECAY_DAYS=30;
+function getDecayDays(){ return parseInt(document.getElementById('bk-decay-days')?.value||RT_DECAY_DAYS); }
+function applyDecay(){
+    const now=Date.now();
+    const decayMs=getDecayDays()*24*60*60*1000;
+    let decayed=0;
+    personalKnown.forEach((v,w)=>{
+        if(v.reason==='rt'&&v.promotedAt&&(now-v.promotedAt)>decayMs){
+            personalKnown.delete(w);decayed++;
+        }
+    });
+    if(decayed>0)saveToLocalStorage();
+    return decayed;
+}
+
+function initPruefung(){
+    const decayed=applyDecay();
+    rtQueue=buildRtQueue();
+    rtIndex=0;rtActive=false;
+    rtSessionDone=0;rtSessionFast=0;rtSessionKnown=0;rtSessionMs=[];
+    document.getElementById('rt-s-live').textContent='—';
+    document.getElementById('rt-s-live').style.color='var(--text)';
+    updateRtUI();
+    updateRtStats();
+    const q1=computeGlobalQ1();
+    document.getElementById('rt-q1-label').textContent=q1?`Q1: ${q1}ms`:(decayed?`Q1: — (${decayed}词已衰减)`:'Q1: 数据不足');
+}
+function updateRtUI(){
+    const total=rtQueue.length;
+    const bar=document.getElementById('rt-progress-bar');
+    const label=document.getElementById('rt-progress-text');
+    bar.style.width=total>0?`${(rtIndex/total)*100}%`:'0%';
+    label.textContent=total>0?`${rtIndex} / ${total}`:'词汇不足';
+    if(rtIndex>=total&&total>0){
+        document.getElementById('rt-word').textContent='完成';
+        document.getElementById('rt-sub').textContent=`本轮 ${rtSessionDone} 词`;
+        document.getElementById('rt-answer').classList.remove('visible');
+        document.getElementById('rt-ms').textContent='';
+        document.getElementById('rt-main-btn').textContent='再来一轮';
+        rtActive=false;return;
+    }
+    if(total===0){
+        document.getElementById('rt-word').textContent='—';
+        document.getElementById('rt-sub').textContent='暂无词汇';
+        document.getElementById('rt-main-btn').textContent='Start';
+        return;
+    }
+    if(!rtActive){
+        document.getElementById('rt-word').textContent=rtQueue[rtIndex]||'—';
+        document.getElementById('rt-sub').textContent='按 Space 或点击开始计时';
+        document.getElementById('rt-main-btn').textContent='Start';
+    }
+}
+function updateRtStats(){
+    document.getElementById('rt-s-done').textContent=rtSessionDone;
+    document.getElementById('rt-s-fast').textContent=rtSessionFast;
+    document.getElementById('rt-s-avg').textContent=rtSessionMs.length>0?Math.round(rtSessionMs.reduce((a,b)=>a+b,0)/rtSessionMs.length)+'':'—';
+    document.getElementById('rt-s-known').textContent=rtSessionKnown;
+}
+function startRtTimer(){
+    if(rtIndex>=rtQueue.length)return;
+    rtActive=true;
+    const word=rtQueue[rtIndex];
+    const wEl=document.getElementById('rt-word');
+    wEl.classList.add('flash');
+    setTimeout(()=>{
+        wEl.textContent=word;
+        wEl.classList.remove('flash');
+        document.getElementById('rt-sub').textContent='识别后按 Space 或点击';
+        document.getElementById('rt-answer').classList.remove('visible');
+        document.getElementById('rt-ms').textContent='';
+        document.getElementById('rt-main-btn').textContent='已识别 ·';
+        rtStartMs=performance.now();
+    },150);
+}
+function recordRt(){
+    if(!rtActive)return;
+    const ms=Math.round(performance.now()-rtStartMs);
+    const word=rtQueue[rtIndex];
+    addRtTrial(word,ms);
+    const promoted=checkAutoPromoteToKnown(word);
+    // show answer
+    const meta=findEntryMeta(word);
+    const ansEl=document.getElementById('rt-answer');
+    if(meta){
+        ansEl.innerHTML=`<span class="zh">${meta.zh}</span>${meta.en?` · <span class="en">${meta.en}</span>`:''}`;
+    }else{ansEl.innerHTML='';}
+    ansEl.classList.add('visible');
+    const msEl=document.getElementById('rt-ms');
+    const q1=computeGlobalQ1();
+    const absT=getAbsThreshold();
+    const fast=(q1&&ms<q1)||(ms<absT);
+    msEl.innerHTML=`<span class="ms-val" style="color:${fast?'var(--primary)':'var(--blue)'}">${ms}ms</span>${fast?' ⚡':''}`;
+    // live MS stat
+    document.getElementById('rt-s-live').textContent=ms;
+    document.getElementById('rt-s-live').style.color=fast?'var(--primary)':'var(--text)';
+    // session stats
+    rtSessionDone++;
+    rtSessionMs.push(ms);
+    if(fast)rtSessionFast++;
+    if(promoted)rtSessionKnown++;
+    // undo state
+    rtLastWord=word;rtLastMs=ms;
+    const undoBtn=document.getElementById('rt-undo-btn');
+    undoBtn.style.display='inline-flex';
+    if(rtUndoTimeout)clearTimeout(rtUndoTimeout);
+    rtUndoTimeout=setTimeout(()=>{undoBtn.style.display='none';},6000);
+    rtActive=false;
+    document.getElementById('rt-main-btn').textContent='下一个 →';
+    saveToLocalStorage();
+    updateRtStats();
+    // update q1 label
+    const q1new=computeGlobalQ1();
+    document.getElementById('rt-q1-label').textContent=q1new?`Q1: ${q1new}ms`:'Q1: 数据不足';
+}
+function advanceRt(){
+    if(rtIndex>=rtQueue.length)return;
+    if(rtActive){recordRt();return;}
+    rtIndex++;
+    if(rtIndex>=rtQueue.length){updateRtUI();return;}
+    updateRtUI();
+    startRtTimer();
+}
+
+// Button wiring
+document.getElementById('rt-main-btn').addEventListener('click',()=>{
+    if(rtIndex>=rtQueue.length&&rtQueue.length>0){initPruefung();startRtTimer();return;}
+    if(!rtActive&&rtIndex===0&&rtSessionDone===0){startRtTimer();document.getElementById('rt-main-btn').textContent='已识别 ·';return;}
+    if(rtActive){recordRt();}else{advanceRt();startRtTimer();}
+});
+document.getElementById('rt-skip-btn').addEventListener('click',()=>{
+    if(rtActive)rtActive=false;
+    rtIndex++;updateRtUI();
+    if(rtIndex<rtQueue.length)startRtTimer();
+});
+document.getElementById('rt-undo-btn').addEventListener('click',()=>{
+    if(!rtLastWord)return;
+    const info=vocabStore.get(rtLastWord);
+    if(info&&info.rt&&info.rt.trials.length>0){
+        info.rt.trials.pop();
+        info.rt.avg=info.rt.trials.length>0?Math.round(info.rt.trials.reduce((a,b)=>a+b,0)/info.rt.trials.length):null;
+    }
+    if(personalKnown.get(rtLastWord)?.reason==='rt'&&personalKnown.get(rtLastWord)?.rtAvg===rtLastMs){
+        personalKnown.delete(rtLastWord);
+    }
+    rtSessionDone=Math.max(0,rtSessionDone-1);
+    rtSessionMs.pop();
+    saveToLocalStorage();updateRtStats();
+    document.getElementById('rt-undo-btn').style.display='none';
+    rtLastWord=null;rtLastMs=null;
+});
+// Space key support
+document.addEventListener('keydown',e=>{
+    if(e.code==='Space'&&document.getElementById('page3').classList.contains('active')){
+        e.preventDefault();
+        document.getElementById('rt-main-btn').click();
+    }
+});
+// Filter buttons
+document.querySelectorAll('#rt-options .rt-opt-btn').forEach(b=>{
+    b.addEventListener('click',()=>{
+        document.querySelectorAll('#rt-options .rt-opt-btn').forEach(x=>x.classList.remove('active'));
+        b.classList.add('active');rtFilter=b.dataset.filter;initPruefung();
+    });
+});
+// Populate meta cache when LLM results are parsed
+const _origParseLlm=parseLlmResult;
+
+// ============================================
+// PAGE 4: BEKANNT
+// ============================================
+function renderBekannt(){
+    const search=document.getElementById('bekannt-search').value.toLowerCase();
+    const grid=document.getElementById('bekannt-grid');
+    grid.innerHTML='';
+    let total=0,rt=0,manual=0;
+    const entries=Array.from(personalKnown.entries())
+        .filter(([w])=>!search||w.toLowerCase().includes(search))
+        .sort((a,b)=>a[0].localeCompare(b[0]));
+    entries.forEach(([w,v])=>{
+        total++;
+        if(v.reason==='rt')rt++;else manual++;
+        const card=document.createElement('div');card.className='bekannt-card';
+        const info=vocabStore.get(w);
+        const avgMs=info?.rt?.avg?`${info.rt.avg}ms · `:'';
+        const trials=info?.rt?.trials?.length||0;
+        card.innerHTML=`
+            <div class="bekannt-word">${w}</div>
+            <div class="bekannt-meta">
+                ${avgMs}<span class="reason-${v.reason}">${v.reason==='rt'?'RT自动':'手动'}</span>
+                ${trials>0?` · ${trials}次`:''}
+            </div>
+            <button class="bekannt-restore" title="恢复" data-word="${w}">×</button>`;
+        grid.appendChild(card);
+    });
+    document.getElementById('bk-total').textContent=total;
+    document.getElementById('bk-rt').textContent=rt;
+    document.getElementById('bk-manual').textContent=manual;
+    // sync mode buttons
+    document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===knownDisplayMode));
+}
+document.getElementById('bekannt-grid').addEventListener('click',e=>{
+    const btn=e.target.closest('.bekannt-restore');if(!btn)return;
+    const w=btn.dataset.word;
+    personalKnown.delete(w);saveToLocalStorage();renderBekannt();
+    if(currentEntries.length>0)renderCornellTable(currentEntries);
+});
+document.getElementById('bekannt-search').addEventListener('input',renderBekannt);
+document.querySelectorAll('.mode-btn').forEach(b=>{
+    b.addEventListener('click',()=>{
+        knownDisplayMode=b.dataset.mode;
+        saveToLocalStorage();renderBekannt();
+        if(currentEntries.length>0)renderCornellTable(currentEntries);
+    });
+});
+document.getElementById('bekannt-clear-btn').addEventListener('click',()=>{
+    if(!confirm(`清空全部 ${personalKnown.size} 个已掌握词汇？`))return;
+    personalKnown.clear();saveToLocalStorage();renderBekannt();
+    if(currentEntries.length>0)renderCornellTable(currentEntries);
+});
+
+// ============================================
+// PATCH parseLlmResult to populate rtMetaCache
+// ============================================
+
+
+// ============================================
+// BOTTOM BAR
+// ============================================
+const textInput=document.getElementById('text-input');
+const processBtn=document.getElementById('process-btn');
+const llmInput=document.getElementById('llm-input');
+const parseLlmBtn=document.getElementById('parse-llm-btn');
+const cornellTable=document.getElementById('cornell-table');
+const copyFeedback=document.getElementById('copy-feedback');
+let currentEntries=[],currentTokens=[];
+
+processBtn.addEventListener('click',()=>{
+    const text=textInput.value.trim();if(!text)return;
+    // Store for Lese mode
+    leseCurrentText = text;
+    leseTextReady = true;
+    const dk=getCurrentDecadeKey();
+    if(!rawTexts.has(dk))rawTexts.set(dk,[]);
+    rawTexts.get(dk).push(text);
+    currentTokens=tokenize(text);
+    const prompt=`上下文无关，请直接返回结果。
+
+从第一行开始，对以下词汇提供格式化注释。如果词汇包含常见德语词根词缀，用一句话说明词根或词缀如何组合成这个意思，不超过15词
+词汇_动词lemma或名词词性_繁体中文_英文/德语 >>> 词根词缀
+
+如果词汇是英语，则改为
+词汇_lemma_简体中文翻译_现代日语翻译 >>> 日语翻译中汉字的读音平假名注释
+
+最后一行：标注本注释任务所使用的真實模型名称，格式为 "Model: Claude Sonnet 4.6" 或 "Model: Grok" 等
+
+示例：
+Entwicklung_Entwicklung_發展_development >>> ent（去除）+Wicklung（绕组）
+Gesellschaft_Gesellschaft_社會_society
+Model: 真实具体模型名称
+
+词汇列表：
+`;
+    navigator.clipboard.writeText(prompt+currentTokens.join('\n')).then(()=>{processBtn.classList.add('success');processBtn.textContent='✓';copyFeedback.classList.add('show');setTimeout(()=>{processBtn.classList.remove('success');processBtn.textContent='⎘';copyFeedback.classList.remove('show');},1500);});
+    updateStats();saveToLocalStorage();
+});
+parseLlmBtn.addEventListener('click',parseLlmResult);
+textInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();processBtn.click();}});
+llmInput.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();parseLlmResult();}});
+llmInput.addEventListener('paste',()=>{setTimeout(()=>{if(llmInput.value.includes('\n'))parseLlmResult();},100);});
+
+function parseLlmResult(){
+    const lr=llmInput.value.trim();if(!lr)return;
+    let lines=lr.split('\n').filter(l=>l.trim());
+    const now=new Date(),dk=getDecadeKey(now),entries=[];
+    let mn='Unknown';
+    if(lines.length>0&&(lines[lines.length-1].includes('Model:')||lines[lines.length-1].includes('Model：'))){mn=lines[lines.length-1].split(/[：:]/)[1].trim()||'Unknown';lines.pop();}
+    const mi=getModelIndex(mn);
+    lines.forEach(line=>{const lp=line.split('>>>');const mp=lp[0].trim();const et=lp.length>1?lp[1].trim():'';const parts=mp.split('_').map(p=>p.trim());
+    if(parts.length>=2){const w=parts[0],lm=parts[1]||w,zh=parts[2]||'',en=parts[3]||'';
+    if(!vocabStore.has(w))vocabStore.set(w,{s:{}});const info=vocabStore.get(w);
+    if(!info.s[dk])info.s[dk]={total:0,m:Array(modelsDict.length).fill(0)};
+    while(info.s[dk].m.length<=mi)info.s[dk].m.push(0);info.s[dk].total++;info.s[dk].m[mi]++;
+    // persist meta into vocabStore (overwrite with latest)
+    info.meta={zh,en,lemma:lm};
+    rtMetaCache.set(w,{zh,en,lemma:lm});
+    entries.push({word:w,lemma:lm,zh,en,etym:et});}});
+    updateDecadeStats(entries.map(e=>e.word),now);saveToLocalStorage();renderCornellTable(entries);updateStats();updateModelStats();updateMarquee();
+    parseLlmBtn.classList.add('success');parseLlmBtn.textContent='✓';setTimeout(()=>{parseLlmBtn.classList.remove('success');parseLlmBtn.textContent='↵';llmInput.value='';textInput.value='';},1000);
+    // Also update Lese panel if it has content
+    renderLeseCornell(entries);
+}
+
+function renderCornellTable(entries){cornellTable.querySelectorAll('.cornell-row').forEach(r=>r.remove());currentEntries=entries;
+if(entries.length===0){const r=document.createElement('div');r.className='cornell-row';r.innerHTML='<div class="cornell-word empty-state" style="grid-column:1/-1;border-right:none;">Benutzen Sie die Leiste unten</div>';cornellTable.appendChild(r);}
+else{let de=currentSortMode==='alpha'?[...entries].sort((a,b)=>a.word.localeCompare(b.word,'de')):entries;
+de.forEach(({word,lemma,zh,en,etym})=>{
+    // skip known words in stopword mode
+    if(knownDisplayMode==='stopword'&&personalKnown.has(word))return;
+    const info=vocabStore.get(word);let tc=0;if(info&&info.s)Object.values(info.s).forEach(d=>tc+=d.total);
+    const r=document.createElement('div');
+    const isKnown=personalKnown.has(word);
+    r.className='cornell-row'+(isKnown?' known':'');
+    const eh=etym?`<br><span style="color:var(--text-muted);font-size:0.85rem;">» ${etym}</span>`:'';
+    const knownBadge=isKnown?`<span style="font-family:var(--font-mono);font-size:0.6rem;color:var(--text-muted);margin-left:0.5rem;">bekannt</span>`:'';
+    r.innerHTML=`<div class="cornell-word">${word}${knownBadge} <span style="color:var(--text-muted);font-size:0.85em;">(${tc})</span></div><div class="cornell-def"><span class="lemma">${lemma}</span> · <span class="zh">${zh}</span> · <span class="en">${en}</span>${eh}</div>`;
+    cornellTable.appendChild(r);});}
+document.getElementById('word-count').textContent=`${entries.length} Wörter`;}
+
+// ============================================
+// PAGE 2: FREQUENCY
+// ============================================
+let currentFilter='all';
+document.querySelectorAll('#freq-filter .filter-btn').forEach(b=>{b.addEventListener('click',()=>{document.querySelectorAll('#freq-filter .filter-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');currentFilter=b.dataset.filter;updateFrequencyTable();});});
+function updateFrequencyTable(){const tb=document.getElementById('freq-tbody');const ds=getDecadeFilter(currentFilter);const fm=new Map();vocabStore.forEach((i,w)=>{let c=0;ds.forEach(d=>{if(i&&i.s&&i.s[d])c+=i.s[d].total;});if(c>0)fm.set(w,c);});const sorted=Array.from(fm.entries()).sort((a,b)=>b[1]-a[1]);const mf=sorted.length>0?sorted[0][1]:1;if(sorted.length===0){tb.innerHTML='<tr><td colspan="3" class="empty-state">Keine Daten</td></tr>';return;}tb.innerHTML=sorted.map(([w,c],i)=>`<tr><td class="rank">${i+1}</td><td class="word">${w}</td><td class="count">${c}<div class="freq-bar" style="width:${c/mf*100}%"></div></td></tr>`).join('');}
+
+// ============================================
+// PAGE 5: LESE-MODUS (V3)
+// ============================================
+let leseCurrentText = '';
+let leseTextReady = false;
+let leseTimerInterval = null;
+let leseStartTime = 0;
+let leseEstSeconds = 0;
+let leseIsTest = false;
+let leseTimerRunning = false;
+let leseOvertimeStart = 0;
+let leseCurrentLang = 'de';
+let leseWordCount = 0;
+
+// Reading speed: words per minute per language
+const LESE_WPM = { de: 220, en: 238 };
+// LaTeX article 11pt, 1in margins, A4 — words per page
+const LESE_WPP = { de: 508, en: 635 };
+
+function leseCountWords(text, lang) {
+    // For DE/EN: split on whitespace
+    return text.trim().split(/\s+/).filter(w => w.length > 0).length;
+}
+
+function leseFormatTime(seconds) {
+    const s = Math.abs(Math.round(seconds));
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m}:${String(sec).padStart(2,'0')}`;
+}
+
+function initLeseMode() {
+    const textBody = document.getElementById('lese-text-body');
+    const emptyHint = document.getElementById('lese-empty-hint');
+    const testPrompt = document.getElementById('lese-test-prompt');
+    const summary = document.getElementById('lese-summary');
+    const stopBtn = document.getElementById('lese-stop-btn');
+
+    // Stop any running timer
+    if(leseTimerInterval) { clearInterval(leseTimerInterval); leseTimerInterval = null; }
+    leseTimerRunning = false;
+
+    if(leseCurrentText) {
+        leseMarkedWords.clear();
+        renderLeseClickable();
+        textBody.classList.remove('lese-text-hidden','lese-text-reveal');
+        textBody.style.display = 'block';
+        emptyHint.style.display = 'none';
+
+        leseWordCount = leseCountWords(leseCurrentText, leseCurrentLang);
+        leseEstSeconds = Math.round(leseWordCount / LESE_WPM[leseCurrentLang] * 60);
+
+        // Word count + page estimate
+        const wpp = LESE_WPP[leseCurrentLang];
+        const pages = leseWordCount / wpp;
+        const pagesStr = pages.toFixed(2);
+        document.getElementById('lese-stat-words').textContent = leseWordCount.toLocaleString();
+        document.getElementById('lese-stat-pages').textContent = pagesStr;
+        document.getElementById('lese-word-stats').style.display = 'block';
+
+        document.getElementById('lese-timer-display').textContent = leseFormatTime(leseEstSeconds);
+        document.getElementById('lese-timer-display').classList.remove('overtime');
+        document.getElementById('lese-timer-bar').style.width = '100%';
+        document.getElementById('lese-timer-bar').classList.remove('overtime');
+        document.getElementById('lese-timer-label').textContent = 'Lesezeit (Schätzung)';
+        testPrompt.style.display = 'flex';
+        summary.classList.remove('visible');
+        stopBtn.style.display = 'none';
+    } else {
+        textBody.style.display = 'none';
+        emptyHint.style.display = 'block';
+        testPrompt.style.display = 'none';
+        summary.classList.remove('visible');
+        stopBtn.style.display = 'none';
+        document.getElementById('lese-word-stats').style.display = 'none';
+        document.getElementById('lese-timer-display').textContent = '—:——';
+    }
+}
+
+function leseStartTimer(isTest) {
+    leseIsTest = isTest;
+    leseTimerRunning = true;
+    leseStartTime = performance.now();
+    leseOvertimeStart = 0;
+
+    const textBody = document.getElementById('lese-text-body');
+    const testPrompt = document.getElementById('lese-test-prompt');
+    const stopBtn = document.getElementById('lese-stop-btn');
+    const timerDisplay = document.getElementById('lese-timer-display');
+    const timerBar = document.getElementById('lese-timer-bar');
+    const timerLabel = document.getElementById('lese-timer-label');
+
+    testPrompt.style.display = 'none';
+    stopBtn.style.display = 'block';
+
+    if(isTest) {
+        textBody.classList.add('lese-text-hidden');
+        timerLabel.textContent = 'Test läuft…';
+        // Reveal text after a brief moment (user already clicked start)
+        setTimeout(() => { textBody.classList.remove('lese-text-hidden'); textBody.classList.add('lese-text-reveal'); }, 300);
+    } else {
+        timerLabel.textContent = 'Timer läuft…';
+    }
+
+    leseTimerInterval = setInterval(() => {
+        const elapsed = (performance.now() - leseStartTime) / 1000;
+        const remaining = leseEstSeconds - elapsed;
+
+        if(remaining >= 0) {
+            timerDisplay.textContent = leseFormatTime(remaining);
+            timerDisplay.classList.remove('overtime');
+            timerBar.style.width = `${(remaining / leseEstSeconds) * 100}%`;
+            timerBar.classList.remove('overtime');
+        } else {
+            // Overtime
+            timerDisplay.textContent = '+' + leseFormatTime(-remaining);
+            timerDisplay.classList.add('overtime');
+            timerBar.style.width = '100%';
+            timerBar.classList.add('overtime');
+            timerLabel.textContent = 'Überschritten ↑';
+        }
+    }, 500);
+}
+
+function leseStopTimer() {
+    if(!leseTimerRunning) return;
+    clearInterval(leseTimerInterval);
+    leseTimerInterval = null;
+    leseTimerRunning = false;
+
+    const elapsed = (performance.now() - leseStartTime) / 1000;
+    const ratio = elapsed / leseEstSeconds;
+    const wpm = Math.round(leseWordCount / (elapsed / 60));
+
+    const summary = document.getElementById('lese-summary');
+    document.getElementById('lese-s-words').textContent = leseWordCount;
+    document.getElementById('lese-s-est').textContent = leseFormatTime(leseEstSeconds);
+    document.getElementById('lese-s-actual').textContent = leseFormatTime(elapsed);
+    document.getElementById('lese-s-wpm').textContent = wpm + ' W/min';
+
+    const ratioEl = document.getElementById('lese-s-ratio');
+    ratioEl.textContent = ratio.toFixed(2) + '×';
+    ratioEl.className = ratio <= 1.2 ? 'lese-ratio-good' : ratio <= 2.0 ? 'lese-ratio-ok' : 'lese-ratio-slow';
+
+    summary.classList.add('visible');
+    document.getElementById('lese-stop-btn').style.display = 'none';
+    document.getElementById('lese-timer-label').textContent = 'Abgeschlossen';
+}
+
+// Render cornell in lese panel (called after parseLlmResult)
+function renderLeseCornell(entries) {   // Lesen 页右侧
+    const table = document.getElementById('lese-cornell-table');
+    table.querySelectorAll('.cornell-row').forEach(r => r.remove());
+    document.getElementById('lese-word-count').textContent = `${entries.length} Wörter`;
+    if(entries.length === 0) {
+        const r = document.createElement('div'); r.className = 'cornell-row';
+        r.innerHTML = '<div class="empty-state">—</div>';
+        table.appendChild(r); return;
+    }
+    const de = currentSortMode === 'alpha' ? [...entries].sort((a,b) => a.word.localeCompare(b.word,'de')) : entries;
+    de.forEach(({word, lemma, zh, en, etym}) => {
+        if(knownDisplayMode === 'stopword' && personalKnown.has(word)) return;
+        const info = vocabStore.get(word);
+        let tc = 0; if(info && info.s) Object.values(info.s).forEach(d => tc += d.total);
+        const r = document.createElement('div');
+        const isKnown = personalKnown.has(word);
+        r.className = 'cornell-row' + (isKnown ? ' known' : '');
+        const knownBadge = isKnown ? `<span style="font-family:var(--font-mono);font-size:0.55rem;color:var(--text-muted);margin-left:0.3rem;vertical-align:middle;">bk</span>` : '';
+        const tcBadge = `<span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-muted);margin-left:0.25rem;">(${tc})</span>`;
+        const defParts = [
+            lemma !== word ? `<span class="lemma">${lemma}</span>` : '',
+            zh ? `<span class="zh">${zh}</span>` : '',
+            en ? `<span class="en">${en}</span>` : ''
+        ].filter(Boolean).join(' · ');
+        const etymLine = etym ? `<div style="color:var(--text-muted);font-size:0.8rem;margin-top:0.15rem;">» ${etym}</div>` : '';
+        r.innerHTML = `<div class="cornell-word">${word}${knownBadge}${tcBadge}</div><div class="cornell-def">${defParts}${etymLine}</div>`;
+        table.appendChild(r);
+    });
+}
+
+// ── Lese-Modus: 手动点击标记不认识的词 ──────────────────────────
+let leseMarkedWords = new Set();
+
+function renderLeseClickable() {
+    const textBody = document.getElementById('lese-text-body');
+    if (!leseCurrentText) return;
+    const safe = leseCurrentText.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const tokens = safe.split(/((?:[a-zA-ZäöüÄÖÜß])+)/);
+    const html = tokens.map((tok, i) => {
+        if (i % 2 === 1) {
+            const cls = leseMarkedWords.has(tok) ? ' class="lese-hl"' : '';
+            return `<span data-w="${tok}"${cls}>${tok}</span>`;
+        }
+        return tok;
+    }).join('');
+    textBody.style.whiteSpace = 'pre-wrap';
+    textBody.innerHTML = html;
+    textBody.onclick = leseWordClick;
+}
+
+function leseWordClick(e) {
+    const span = e.target.closest('span[data-w]');
+    if (!span) return;
+    const w = span.dataset.w;
+    if (leseMarkedWords.has(w)) {
+        leseMarkedWords.delete(w);
+        document.querySelectorAll(`#lese-text-body span[data-w="${w}"]`)
+            .forEach(s => s.classList.remove('lese-hl'));
+    } else {
+        leseMarkedWords.add(w);
+        document.querySelectorAll(`#lese-text-body span[data-w="${w}"]`)
+            .forEach(s => s.classList.add('lese-hl'));
+    }
+}
+
+// Language toggle
+document.querySelectorAll('.lese-lang-btn').forEach(b => {
+    b.addEventListener('click', () => {
+        document.querySelectorAll('.lese-lang-btn').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        leseCurrentLang = b.dataset.lang;
+        if(leseCurrentText && !leseTimerRunning) initLeseMode();
+    });
+});
+
+document.getElementById('lese-test-start-btn').addEventListener('click', () => { leseStartTimer(true); });
+document.getElementById('lese-test-skip-btn').addEventListener('click', () => { leseStartTimer(false); });
+document.getElementById('lese-stop-btn').addEventListener('click', leseStopTimer);
+
+// ============================================
+// INIT
+// ============================================
+loadFromLocalStorage(); // rebuilds rtMetaCache from vocabStore.meta
+updateStats();
+updateModelStats();
+updateMarquee();
+document.getElementById('sort-toggle').addEventListener('click', toggleSortMode);
+</script>
+</body>
+</html>
