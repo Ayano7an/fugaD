@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Toccata and Fuga in C Major V3.0</title>
+    <title>Toccata and Fuga in C Major v3.0.1</title>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -487,8 +487,8 @@
 <body>
     <div class="marquee-container">
         <div class="marquee">
-            <div class="marquee-content" id="marquee-content"><span class="marquee-item">Toccata and Fuga in C Major V3.0 — Lese-Modus aktiv</span></div>
-            <div class="marquee-content" id="marquee-content-duplicate"><span class="marquee-item">Toccata and Fuga in C Major V3.0 — Lese-Modus aktiv</span></div>
+            <div class="marquee-content" id="marquee-content"><span class="marquee-item">Toccata and Fuga in C Major V3.0.1 — Lese-Modus aktiv</span></div>
+            <div class="marquee-content" id="marquee-content-duplicate"><span class="marquee-item">Toccata and Fuga in C Major V3.0.1 — Lese-Modus aktiv</span></div>
         </div>
     </div>
     <nav class="nav">
@@ -629,7 +629,7 @@
                     <div class="lese-timer-stats" id="lese-word-stats" style="display:none">
                         <div class="lese-timer-stat">
                             <div class="lese-timer-stat-val" id="lese-stat-words">—</div>
-                            <div class="lese-timer-stat-lbl">Wörter</div>
+                            <div class="lese-timer-stat-lbl">Wörter / Zeichen</div>
                         </div>
                         <div class="lese-timer-stat">
                             <div class="lese-timer-stat-val" id="lese-stat-pages">—</div>
@@ -657,7 +657,7 @@
                         <div class="lese-summary-row"><span>Schätzzeit</span><span id="lese-s-est">—</span></div>
                         <div class="lese-summary-row"><span>Tatsächlich</span><span id="lese-s-actual">—</span></div>
                         <div class="lese-summary-row"><span>Verhältnis</span><span id="lese-s-ratio">—</span></div>
-                        <div class="lese-summary-row"><span>Wörter/min</span><span id="lese-s-wpm">—</span></div>
+                        <div class="lese-summary-row"><span>Zeichen/min</span><span id="lese-s-wpm">—</span></div>
                     </div>
 
                     <!-- Stop button -->
@@ -1254,14 +1254,16 @@ let leseOvertimeStart = 0;
 let leseCurrentLang = 'de';
 let leseWordCount = 0;
 
-// Reading speed: words per minute per language
-const LESE_WPM = { de: 220, en: 238 };
-// LaTeX article 11pt, 1in margins, A4 — words per page
-const LESE_WPP = { de: 508, en: 635 };
+// Reading speed: characters per minute (non-whitespace) per language
+// DE ~950 cpm, EN ~1000 cpm  (Brysbaert et al. 2019; Rothe et al. 2004)
+const LESE_CPM = { de: 950, en: 1000 };
+// LaTeX article 11pt, 1in margins, A4 — non-whitespace characters per page
+// DE: ~508 words × 6.3 chars/word ≈ 3200;  EN: ~635 words × 4.5 chars/word ≈ 2860
+const LESE_CPC = { de: 3200, en: 2860 };
 
-function leseCountWords(text, lang) {
-    // For DE/EN: split on whitespace
-    return text.trim().split(/\s+/).filter(w => w.length > 0).length;
+function leseCountChars(text) {
+    // Count non-whitespace characters only (language-neutral)
+    return (text.match(/\S/g) || []).length;
 }
 
 function leseFormatTime(seconds) {
@@ -1289,14 +1291,16 @@ function initLeseMode() {
         textBody.style.display = 'block';
         emptyHint.style.display = 'none';
 
-        leseWordCount = leseCountWords(leseCurrentText, leseCurrentLang);
-        leseEstSeconds = Math.round(leseWordCount / LESE_WPM[leseCurrentLang] * 60);
+        leseWordCount = leseCurrentText.trim().split(/\s+/).filter(w => w.length > 0).length;
+        const leseCharCount = leseCountChars(leseCurrentText);
+        leseEstSeconds = Math.round(leseCharCount / LESE_CPM[leseCurrentLang] * 60);
 
-        // Word count + page estimate
-        const wpp = LESE_WPP[leseCurrentLang];
-        const pages = leseWordCount / wpp;
+        // Word count + page estimate (pages based on chars)
+        const cpc = LESE_CPC[leseCurrentLang];
+        const pages = leseCharCount / cpc;
         const pagesStr = pages.toFixed(2);
-        document.getElementById('lese-stat-words').textContent = leseWordCount.toLocaleString();
+        document.getElementById('lese-stat-words').textContent =
+            leseWordCount.toLocaleString() + ' W / ' + leseCharCount.toLocaleString() + ' Z';
         document.getElementById('lese-stat-pages').textContent = pagesStr;
         document.getElementById('lese-word-stats').style.display = 'block';
 
@@ -1372,13 +1376,16 @@ function leseStopTimer() {
 
     const elapsed = (performance.now() - leseStartTime) / 1000;
     const ratio = elapsed / leseEstSeconds;
+    const actualCharCount = leseCountChars(leseCurrentText);
+    const cpm = Math.round(actualCharCount / (elapsed / 60));
     const wpm = Math.round(leseWordCount / (elapsed / 60));
 
     const summary = document.getElementById('lese-summary');
-    document.getElementById('lese-s-words').textContent = leseWordCount;
+    document.getElementById('lese-s-words').textContent =
+        leseWordCount + ' W / ' + actualCharCount.toLocaleString() + ' Z';
     document.getElementById('lese-s-est').textContent = leseFormatTime(leseEstSeconds);
     document.getElementById('lese-s-actual').textContent = leseFormatTime(elapsed);
-    document.getElementById('lese-s-wpm').textContent = wpm + ' W/min';
+    document.getElementById('lese-s-wpm').textContent = cpm + ' Z/min (' + wpm + ' W/min)';
 
     const ratioEl = document.getElementById('lese-s-ratio');
     ratioEl.textContent = ratio.toFixed(2) + '×';
