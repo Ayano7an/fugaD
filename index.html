@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Toccata and Fuga in C Major V3.0</title>
+    <title>Toccata and Fuga in C Major V3.0.2 </title>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -454,6 +454,28 @@
         .lese-ratio-ok { color: var(--accent) !important; }
         .lese-ratio-slow { color: var(--primary) !important; }
 
+        /* Focus mode toggle */
+        .lese-focus-toggle {
+            width: 100%; border: 1px solid var(--border); background: var(--bg);
+            color: var(--text-muted); font-family: var(--font-mono); font-size: 0.68rem;
+            padding: 0.45rem 0.5rem; cursor: pointer; transition: all 0.2s ease;
+            text-transform: uppercase; letter-spacing: 0.08em; display: flex;
+            align-items: center; justify-content: center; gap: 0.4rem;
+        }
+        .lese-focus-toggle:hover { border-color: var(--accent); color: var(--accent); }
+        .lese-focus-toggle.active {
+            background: var(--accent); border-color: var(--accent);
+            color: white; font-weight: 600;
+        }
+        .lese-focus-count {
+            background: rgba(255,255,255,0.25); border-radius: 2px;
+            padding: 0 5px; font-size: 0.7rem; font-weight: 700;
+            min-width: 18px; text-align: center;
+        }
+        .lese-focus-toggle:not(.active) .lese-focus-count {
+            background: var(--bg-alt); color: var(--blue);
+        }
+
         /* Language toggle in lese */
         .lese-lang-toggle {
             display: flex; gap: 0; border: 1px solid var(--border);
@@ -642,6 +664,12 @@
                         <button class="lese-lang-btn active" data-lang="de">DE</button>
                         <button class="lese-lang-btn" data-lang="en">EN</button>
                     </div>
+
+                    <!-- Focus mode toggle -->
+                    <button class="lese-focus-toggle" id="lese-focus-toggle" title="只显示高亮标记的词">
+                        <span>⊙ 聚焦</span>
+                        <span class="lese-focus-count" id="lese-focus-count">0</span>
+                    </button>
 
                     <!-- Test prompt (shown before reading starts) -->
                     <div class="lese-test-prompt" id="lese-test-prompt">
@@ -1253,6 +1281,7 @@ let leseTimerRunning = false;
 let leseOvertimeStart = 0;
 let leseCurrentLang = 'de';
 let leseWordCount = 0;
+let leseFocusMode = false;  // true = right panel shows only marked words
 
 // Reading speed: characters per minute (non-whitespace) per language
 // DE ~950 cpm, EN ~1000 cpm  (Brysbaert et al. 2019; Rothe et al. 2004)
@@ -1286,6 +1315,11 @@ function initLeseMode() {
 
     if(leseCurrentText) {
         leseMarkedWords.clear();
+        // reset focus mode on new text load
+        leseFocusMode = false;
+        const focusBtn = document.getElementById('lese-focus-toggle');
+        focusBtn.classList.remove('active');
+        document.getElementById('lese-focus-count').textContent = '0';
         renderLeseClickable();
         textBody.classList.remove('lese-text-hidden','lese-text-reveal');
         textBody.style.display = 'block';
@@ -1400,13 +1434,26 @@ function leseStopTimer() {
 function renderLeseCornell(entries) {   // Lesen 页右侧
     const table = document.getElementById('lese-cornell-table');
     table.querySelectorAll('.cornell-row').forEach(r => r.remove());
-    document.getElementById('lese-word-count').textContent = `${entries.length} Wörter`;
-    if(entries.length === 0) {
+
+    // In focus mode, only show entries whose word has been marked in the text
+    const filtered = leseFocusMode
+        ? entries.filter(e => leseMarkedWords.has(e.word))
+        : entries;
+
+    // header: show filtered count / total
+    const countLabel = leseFocusMode
+        ? `${filtered.length} / ${entries.length}`
+        : `${entries.length} Wörter`;
+    document.getElementById('lese-word-count').textContent = countLabel;
+
+    if(filtered.length === 0) {
         const r = document.createElement('div'); r.className = 'cornell-row';
-        r.innerHTML = '<div class="empty-state">—</div>';
+        r.innerHTML = leseFocusMode
+            ? '<div class="empty-state" style="font-size:0.82rem;padding:1.5rem;">点击正文中的词以显示注释</div>'
+            : '<div class="empty-state">—</div>';
         table.appendChild(r); return;
     }
-    const de = currentSortMode === 'alpha' ? [...entries].sort((a,b) => a.word.localeCompare(b.word,'de')) : entries;
+    const de = currentSortMode === 'alpha' ? [...filtered].sort((a,b) => a.word.localeCompare(b.word,'de')) : filtered;
     de.forEach(({word, lemma, zh, en, etym}) => {
         if(knownDisplayMode === 'stopword' && personalKnown.has(word)) return;
         const info = vocabStore.get(word);
@@ -1460,6 +1507,10 @@ function leseWordClick(e) {
         document.querySelectorAll(`#lese-text-body span[data-w="${w}"]`)
             .forEach(s => s.classList.add('lese-hl'));
     }
+    // update counter badge
+    document.getElementById('lese-focus-count').textContent = leseMarkedWords.size;
+    // if focus mode is on, re-render panel to reflect change immediately
+    if(leseFocusMode) renderLeseCornell(currentEntries);
 }
 
 // Language toggle
@@ -1475,6 +1526,14 @@ document.querySelectorAll('.lese-lang-btn').forEach(b => {
 document.getElementById('lese-test-start-btn').addEventListener('click', () => { leseStartTimer(true); });
 document.getElementById('lese-test-skip-btn').addEventListener('click', () => { leseStartTimer(false); });
 document.getElementById('lese-stop-btn').addEventListener('click', leseStopTimer);
+
+// Focus mode toggle
+document.getElementById('lese-focus-toggle').addEventListener('click', () => {
+    leseFocusMode = !leseFocusMode;
+    const btn = document.getElementById('lese-focus-toggle');
+    btn.classList.toggle('active', leseFocusMode);
+    renderLeseCornell(currentEntries);
+});
 
 // ============================================
 // INIT
