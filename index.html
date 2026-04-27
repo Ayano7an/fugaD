@@ -1201,8 +1201,10 @@ processBtn.addEventListener('click',()=>{
     currentTokens=tokenize(text);
     const prompt=`上下文无关，请直接返回结果。
 
-从第一行开始，对以下词汇提供格式化注释。如果词汇包含常见德语词根词缀，用一句话说明词根或词缀如何组合成这个意思，不超过15词
-词汇_动词原型或名词词性_繁体中文_英文/德语 >>> 词根词缀
+从第一行开始，对以下词汇提供格式化注释。如果词汇包含常见德语词根词缀，用一句话说明词根或词缀如何组合成这个意思，不超过15词。
+对于词汇如果是动词就在第二项标注原型，如果是名词就标注词性。
+例如
+词汇_动词原型/名词词性_繁体中文_英文/德语 >>> 词根词缀
 
 如果词汇是英语，则改为
 词汇_动词原形_简体中文翻译_现代日语翻译 >>> 日语翻译中汉字的读音平假名注释
@@ -1210,8 +1212,8 @@ processBtn.addEventListener('click',()=>{
 最后一行：标注本注释任务所使用的真實模型名称，格式为 "Model: Claude Sonnet 4.6" 或 "Model: Grok" 等
 
 示例：
-Entwicklung_Entwicklung_發展_development >>> ent（去除）+Wicklung（绕组）
-Gesellschaft_Gesellschaft_社會_society
+Entwicklung_die Entwicklung_發展_development >>> ent（去除）+Wicklung（绕组）
+lief_laufen_跑_run_ >>> 
 Model: 真实具体模型名称
 
 词汇列表：
