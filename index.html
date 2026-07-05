@@ -505,6 +505,16 @@
             opacity: 0; transition: opacity 0.3s ease; pointer-events: none;
         }
         .copy-feedback.show { opacity: 1; }
+        /* Translation-mode toggle in bottom bar */
+        .tmode-toggle { display: flex; gap: 0; border: 1px solid var(--border); flex-shrink: 0; }
+        .tmode-btn {
+            background: transparent; border: none; border-right: 1px solid var(--border);
+            color: var(--text-muted); font-family: var(--font-mono); font-size: 0.68rem;
+            padding: 0 0.65rem; height: 32px; cursor: pointer; transition: all 0.2s;
+            text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;
+        }
+        .tmode-btn:last-child { border-right: none; }
+        .tmode-btn.active { background: var(--blue); color: white; }
     </style>
 </head>
 <body>
@@ -718,6 +728,12 @@
         </div>
 
     <div class="bottom-bar">
+        <div class="tmode-toggle" id="tmode-toggle">
+            <button class="tmode-btn active" data-tmode="llm" title="纯LLM模式：全部词汇送入LLM">LLM</button>
+            <button class="tmode-btn" data-tmode="hybrid" title="混合模式：词库中已有的直接显示，其余送LLM">混合</button>
+            <button class="tmode-btn" data-tmode="local" title="本地模式：只显示词库中已有的翻译">本地</button>
+        </div>
+        <div class="divider"></div>
         <input type="text" id="text-input" placeholder="Text eingeben...">
         <button class="bar-btn" id="process-btn" title="Verarbeiten & Kopieren">⎘</button>
         <div class="divider"></div>
@@ -731,6 +747,9 @@
 // DATA STORES
 // ============================================
 let currentSortMode = 'input';
+let translationMode = 'llm'; // 'llm' | 'hybrid' | 'local'
+const vocabDb = new Map(); // word → {zh, en, lemma}  (external database)
+let pendingDbEntries = []; // DB-matched entries pre-rendered in hybrid mode
 const vocabStore = new Map();
 const decadeStats = new Map();
 const modelsDict = [];
@@ -1180,6 +1199,59 @@ document.getElementById('bekannt-clear-btn').addEventListener('click',()=>{
 
 
 // ============================================
+// VOCAB DB  (external JSON database via localhost server)
+// ============================================
+async function loadVocabDb() {
+    try {
+        const r = await fetch('/api/db');
+        if (!r.ok) return;
+        const d = await r.json();
+        vocabDb.clear();
+        Object.entries(d.vocab || {}).forEach(([w, v]) => vocabDb.set(w, v));
+        console.log(`VocabDB loaded: ${vocabDb.size} entries`);
+    } catch(e) {
+        console.log('VocabDB not available (running without server)');
+    }
+}
+async function saveToVocabDb(entries) {
+    try {
+        const vocab = {};
+        entries.forEach(({word, lemma, zh, en}) => { vocab[word] = {zh, en, lemma}; });
+        await fetch('/api/db', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({vocab})
+        });
+        Object.entries(vocab).forEach(([w, v]) => vocabDb.set(w, v));
+    } catch(e) {}
+}
+function dbEntryFor(word) {
+    const v = vocabDb.get(word);
+    if (!v) return null;
+    return {word, lemma: v.lemma || word, zh: v.zh || '', en: v.en || '', etym: ''};
+}
+
+function buildPrompt(tokens) {
+    return `\`\`\`上下文无关，请直接返回结果。
+
+从第一行开始，对以下词汇提供格式化注释。如果词汇包含常见德语词根词缀，用一句话说明词根或词缀如何组合成这个意思，不超过15词。
+对于词汇如果是动词就在第二项标注原型，如果是名词就标注词性。
+例如
+词汇_动词原型/名词词性_繁体中文_英文/德语 >>> 词根词缀
+
+如果词汇是英语，则改为
+词汇_动词原形_简体中文翻译_现代日语翻译 >>> 日语翻译中汉字的读音平假名注释
+
+示例：
+Entwicklung_die Entwicklung_發展_development >>> ent（去除）+Wicklung（绕组）
+lief_laufen_跑_run_ >>>
+
+
+词汇列表：
+` + tokens.join('\n');
+}
+
+// ============================================
 // BOTTOM BAR
 // ============================================
 const textInput=document.getElementById('text-input');
@@ -1190,36 +1262,68 @@ const cornellTable=document.getElementById('cornell-table');
 const copyFeedback=document.getElementById('copy-feedback');
 let currentEntries=[],currentTokens=[];
 
-processBtn.addEventListener('click',()=>{
-    const text=textInput.value.trim();if(!text)return;
-    // Store for Lese mode
+processBtn.addEventListener('click', () => {
+    const text = textInput.value.trim(); if (!text) return;
     leseCurrentText = text;
     leseTextReady = true;
-    const dk=getCurrentDecadeKey();
-    if(!rawTexts.has(dk))rawTexts.set(dk,[]);
+    const dk = getCurrentDecadeKey();
+    if (!rawTexts.has(dk)) rawTexts.set(dk, []);
     rawTexts.get(dk).push(text);
-    currentTokens=tokenize(text);
-    const prompt=`\`\`\`上下文无关，请直接返回结果。
+    currentTokens = tokenize(text);
+    updateStats(); saveToLocalStorage();
 
-从第一行开始，对以下词汇提供格式化注释。如果词汇包含常见德语词根词缀，用一句话说明词根或词缀如何组合成这个意思，不超过15词。
-对于词汇如果是动词就在第二项标注原型，如果是名词就标注词性。
-例如
-词汇_动词原型/名词词性_繁体中文_英文/德语 >>> 词根词缀
+    // ── Local mode: DB lookup only, no LLM ───────────────────────────────
+    if (translationMode === 'local') {
+        const entries = currentTokens.map(w => dbEntryFor(w)).filter(Boolean);
+        renderCornellTable(entries); renderLeseCornell(entries);
+        processBtn.classList.add('success'); processBtn.textContent = '✓';
+        copyFeedback.textContent = `本地: ${entries.length}/${currentTokens.length} 词`;
+        copyFeedback.classList.add('show');
+        setTimeout(() => {
+            processBtn.classList.remove('success'); processBtn.textContent = '⎘';
+            copyFeedback.classList.remove('show'); copyFeedback.textContent = 'Kopiert!';
+        }, 1800);
+        return;
+    }
 
-如果词汇是英语，则改为
-词汇_动词原形_简体中文翻译_现代日语翻译 >>> 日语翻译中汉字的读音平假名注释
+    // ── Hybrid mode: DB first, then prompt with remainder ─────────────────
+    if (translationMode === 'hybrid') {
+        const inDb = currentTokens.filter(w => vocabDb.has(w));
+        const notInDb = currentTokens.filter(w => !vocabDb.has(w));
+        pendingDbEntries = inDb.map(w => dbEntryFor(w)).filter(Boolean);
+        renderCornellTable(pendingDbEntries); renderLeseCornell(pendingDbEntries);
+        if (notInDb.length === 0) {
+            processBtn.classList.add('success'); processBtn.textContent = '✓';
+            copyFeedback.textContent = `全部命中词库 (${inDb.length}词)`;
+            copyFeedback.classList.add('show');
+            setTimeout(() => {
+                processBtn.classList.remove('success'); processBtn.textContent = '⎘';
+                copyFeedback.classList.remove('show'); copyFeedback.textContent = 'Kopiert!';
+            }, 2000);
+            return;
+        }
+        navigator.clipboard.writeText(buildPrompt(notInDb)).then(() => {
+            processBtn.classList.add('success'); processBtn.textContent = '✓';
+            copyFeedback.textContent = `Kopiert! (${notInDb.length} neu / ${inDb.length} aus DB)`;
+            copyFeedback.classList.add('show');
+            setTimeout(() => {
+                processBtn.classList.remove('success'); processBtn.textContent = '⎘';
+                copyFeedback.classList.remove('show'); copyFeedback.textContent = 'Kopiert!';
+            }, 2200);
+        });
+        return;
+    }
 
-最后一行：标注本注释任务所使用的真實模型名称，格式为 "Model: Claude Sonnet 4.6" 或 "Model: Grok" 等
-
-示例：
-Entwicklung_die Entwicklung_發展_development >>> ent（去除）+Wicklung（绕组）
-lief_laufen_跑_run_ >>> 
-Model: 真实具体模型名称
-
-词汇列表：\`\`\` 
-`;
-    navigator.clipboard.writeText(prompt+currentTokens.join('\n')).then(()=>{processBtn.classList.add('success');processBtn.textContent='✓';copyFeedback.classList.add('show');setTimeout(()=>{processBtn.classList.remove('success');processBtn.textContent='⎘';copyFeedback.classList.remove('show');},1500);});
-    updateStats();saveToLocalStorage();
+    // ── LLM mode: full prompt (original behaviour) ────────────────────────
+    pendingDbEntries = [];
+    navigator.clipboard.writeText(buildPrompt(currentTokens)).then(() => {
+        processBtn.classList.add('success'); processBtn.textContent = '✓';
+        copyFeedback.classList.add('show');
+        setTimeout(() => {
+            processBtn.classList.remove('success'); processBtn.textContent = '⎘';
+            copyFeedback.classList.remove('show');
+        }, 1500);
+    });
 });
 parseLlmBtn.addEventListener('click',parseLlmResult);
 textInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();processBtn.click();}});
@@ -1242,9 +1346,18 @@ function parseLlmResult(){
     info.meta={zh,en,lemma:lm};
     rtMetaCache.set(w,{zh,en,lemma:lm});
     entries.push({word:w,lemma:lm,zh,en,etym:et});}});
-    updateDecadeStats(entries.map(e=>e.word),now);saveToLocalStorage();renderCornellTable(entries);updateStats();updateModelStats();updateMarquee();
+    updateDecadeStats(entries.map(e=>e.word),now);saveToLocalStorage();
+    // Save new LLM entries to external vocab DB
+    saveToVocabDb(entries);
+    // In hybrid mode, merge pre-loaded DB entries with new LLM results
+    if (translationMode === 'hybrid' && pendingDbEntries.length > 0) {
+        const llmWords = new Set(entries.map(e => e.word));
+        const dbOnly = pendingDbEntries.filter(e => !llmWords.has(e.word));
+        entries = [...dbOnly, ...entries];
+        pendingDbEntries = [];
+    }
+    renderCornellTable(entries);updateStats();updateModelStats();updateMarquee();
     parseLlmBtn.classList.add('success');parseLlmBtn.textContent='✓';setTimeout(()=>{parseLlmBtn.classList.remove('success');parseLlmBtn.textContent='↵';llmInput.value='';textInput.value='';},1000);
-    // Also update Lese panel if it has content
     renderLeseCornell(entries);
 }
 
@@ -1539,9 +1652,27 @@ document.getElementById('lese-focus-toggle').addEventListener('click', () => {
 });
 
 // ============================================
+// TRANSLATION MODE TOGGLE
+// ============================================
+document.querySelectorAll('#tmode-toggle .tmode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('#tmode-toggle .tmode-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        translationMode = btn.dataset.tmode;
+        // Show/hide LLM input area depending on mode
+        const llmArea = document.getElementById('llm-input');
+        const parseLlmBtnEl = document.getElementById('parse-llm-btn');
+        const hidden = translationMode === 'local';
+        llmArea.style.display = hidden ? 'none' : '';
+        parseLlmBtnEl.style.display = hidden ? 'none' : '';
+    });
+});
+
+// ============================================
 // INIT
 // ============================================
 loadFromLocalStorage(); // rebuilds rtMetaCache from vocabStore.meta
+loadVocabDb();          // load external vocab database from server
 updateStats();
 updateModelStats();
 updateMarquee();
