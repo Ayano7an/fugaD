@@ -58,3 +58,15 @@
 - 使用 `pyglossary` 函式庫處理格式轉換
 - 因 macOS 26 的 Homebrew 尚不相容，改透過 **Anaconda（conda-forge）** 安裝所需的 `pyicu`（Unicode 字元排序函式庫）
 - 每次詞庫有更新後重新執行此腳本即可，USB 傳至 Tolino 即可使用
+
+使用方式：
+build_quickdic.py 的 shebang 行已指定直接使用 Anaconda 的 Python，因此最簡單的方式是：
+
+方法一：直接執行（推薦）
+
+`/opt/anaconda3/bin/python /Users/ayano/Documents/MyApp/fugaD/build_quickdic.py`
+方法二：因為已 chmod +x，可直接呼叫
+
+`/Users/ayano/Documents/MyApp/fugaD/build_quickdic.py`
+
+系統的 python3（`/usr/bin/python3`）不可用，因為 pyicu 只裝在 Anaconda 環境裡，缺少它會報錯。
