@@ -1350,15 +1350,16 @@ function parseLlmResult(){
     // Save new LLM entries to external vocab DB
     saveToVocabDb(entries);
     // In hybrid mode, merge pre-loaded DB entries with new LLM results
+    let finalEntries = entries;
     if (translationMode === 'hybrid' && pendingDbEntries.length > 0) {
         const llmWords = new Set(entries.map(e => e.word));
         const dbOnly = pendingDbEntries.filter(e => !llmWords.has(e.word));
-        entries = [...dbOnly, ...entries];
+        finalEntries = [...dbOnly, ...entries];
         pendingDbEntries = [];
     }
-    renderCornellTable(entries);updateStats();updateModelStats();updateMarquee();
+    renderCornellTable(finalEntries);updateStats();updateModelStats();updateMarquee();
     parseLlmBtn.classList.add('success');parseLlmBtn.textContent='✓';setTimeout(()=>{parseLlmBtn.classList.remove('success');parseLlmBtn.textContent='↵';llmInput.value='';textInput.value='';},1000);
-    renderLeseCornell(entries);
+    renderLeseCornell(finalEntries);
 }
 
 function renderCornellTable(entries){cornellTable.querySelectorAll('.cornell-row').forEach(r=>r.remove());currentEntries=entries;

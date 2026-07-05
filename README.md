@@ -70,3 +70,17 @@ build_quickdic.py 的 shebang 行已指定直接使用 Anaconda 的 Python，因
 `/Users/ayano/Documents/MyApp/fugaD/build_quickdic.py`
 
 系統的 python3（`/usr/bin/python3`）不可用，因為 pyicu 只裝在 Anaconda 環境裡，缺少它會報錯。
+
+
+## 截圖
+
+![](homepage.png)
+
+Get start.
+![](start.png)
+
+![](annotated-reading.png)
+
+Anki quiz based on responsing time.
+![](anki-Rosch.png)
+
