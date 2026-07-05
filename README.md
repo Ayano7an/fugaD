@@ -53,11 +53,14 @@
 
 ### 5. Tolino 詞典轉換腳本 `build_quickdic.py`
 
-將 `vocab_db.json` 轉換為 Tolino Vision Color 原生支援的 **QuickDic v6** 格式（`.quickdic`）：
+更新 build_quickdic.py
+將腳本從 QuickDic 格式改為 Kobo dicthtml 格式，流程是：
 
-- 使用 `pyglossary` 函式庫處理格式轉換
-- 因 macOS 26 的 Homebrew 尚不相容，改透過 **Anaconda（conda-forge）** 安裝所需的 `pyicu`（Unicode 字元排序函式庫）
-- 每次詞庫有更新後重新執行此腳本即可，USB 傳至 Tolino 即可使用
+讀取 vocab_db.json
+用 pyglossary 產生 Kobo 格式目錄（含 gzip 壓縮的 HTML + marisa-trie 索引）
+將目錄打包成 dicthtml-de-zht.zip（不壓縮存儲，與官方格式一致）
+輸出轉移指令
+將詞典載入閱讀器的對應目錄：`~/.kobo/custom-dict`
 
 使用方式：
 build_quickdic.py 的 shebang 行已指定直接使用 Anaconda 的 Python，因此最簡單的方式是：
