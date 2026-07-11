@@ -47,6 +47,78 @@ class FugaHandler(http.server.SimpleHTTPRequestHandler):
 
     # ── POST /api/db ──────────────────────────────────────────────────────────
     def do_POST(self):
+        if self.path == '/api/llm':
+            import urllib.request, urllib.error
+            body = b''
+            try:
+                length = int(self.headers.get('Content-Length', 0))
+                req_body = json.loads(self.rfile.read(length).decode('utf-8'))
+                prompt = req_body.get('prompt', '')
+                ollama_req = json.dumps({
+                    'model': 'gemma3:4b',
+                    'prompt': prompt,
+                    'stream': False,
+                    'think': False
+                }).encode('utf-8')
+                with urllib.request.urlopen(
+                    urllib.request.Request(
+                        'http://localhost:11434/api/generate',
+                        data=ollama_req,
+                        headers={'Content-Type': 'application/json'},
+                        method='POST'
+                    ), timeout=180
+                ) as ollama_resp:
+                    raw = ollama_resp.read().decode('utf-8')
+                print(f'  [llm] ollama raw ({len(raw)} chars): {raw[:200]}')
+                # Ollama may return newline-delimited JSON when stream=False but outputs chunks
+                # Take the last non-empty line that has "response" key
+                result_text = ''
+                for line in raw.strip().splitlines():
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        chunk = json.loads(line)
+                        if 'response' in chunk:
+                            result_text += chunk['response']
+                        if chunk.get('done'):
+                            break
+                    except json.JSONDecodeError:
+                        continue
+                body = json.dumps({'result': result_text}, ensure_ascii=False).encode('utf-8')
+            except urllib.error.URLError as e:
+                print(f'  [llm] URLError: {e}')
+                body = json.dumps({'error': f'Ollama 連接失敗: {e.reason}'}).encode('utf-8')
+            except Exception as e:
+                import traceback; traceback.print_exc()
+                body = json.dumps({'error': str(e)}).encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Content-Length', str(len(body)))
+            self._cors()
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        if self.path == '/api/build-dict':
+            import subprocess
+            try:
+                result = subprocess.run(
+                    ['/opt/anaconda3/bin/python', str(BASE_DIR / 'build_quickdic.py')],
+                    capture_output=True, text=True, timeout=60
+                )
+                ok = result.returncode == 0
+                msg = (result.stdout + result.stderr).strip()
+                body = json.dumps({'ok': ok, 'msg': msg}, ensure_ascii=False).encode('utf-8')
+            except Exception as e:
+                body = json.dumps({'ok': False, 'msg': str(e)}).encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self._cors()
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
         if self.path == '/api/db':
             length = int(self.headers.get('Content-Length', 0))
             body = json.loads(self.rfile.read(length).decode('utf-8'))

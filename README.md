@@ -60,7 +60,7 @@
 用 pyglossary 產生 Kobo 格式目錄（含 gzip 壓縮的 HTML + marisa-trie 索引）
 將目錄打包成 dicthtml-de-zht.zip（不壓縮存儲，與官方格式一致）
 輸出轉移指令
-將詞典載入閱讀器的對應目錄：`~/.kobo/custom-dict`
+將詞典載入閱讀器的對應 目錄：`~/.kobo/custom-dict`
 
 使用方式：
 build_quickdic.py 的 shebang 行已指定直接使用 Anaconda 的 Python，因此最簡單的方式是：

@@ -732,6 +732,7 @@
             <button class="tmode-btn active" data-tmode="llm" title="纯LLM模式：全部词汇送入LLM">LLM</button>
             <button class="tmode-btn" data-tmode="hybrid" title="混合模式：词库中已有的直接显示，其余送LLM">混合</button>
             <button class="tmode-btn" data-tmode="local" title="本地模式：只显示词库中已有的翻译">本地</button>
+            <button class="tmode-btn" data-tmode="gemma" title="本地Gemma模式：自动调用本地Ollama Gemma4模型">Gemma</button>
         </div>
         <div class="divider"></div>
         <input type="text" id="text-input" placeholder="Text eingeben...">
@@ -739,6 +740,8 @@
         <div class="divider"></div>
         <textarea id="llm-input" placeholder="LLM Ergebnis..." rows="1"></textarea>
         <button class="bar-btn" id="parse-llm-btn" title="Einlesen">↵</button>
+        <div class="divider"></div>
+        <button class="bar-btn" id="build-dict-btn" title="生成 Tolino 詞典 (.quickdic)" style="min-width:44px;font-size:0.75rem;letter-spacing:0;">辞</button>
     </div>
     <div class="copy-feedback" id="copy-feedback">Kopiert!</div>
 
@@ -1231,8 +1234,23 @@ function dbEntryFor(word) {
     return {word, lemma: v.lemma || word, zh: v.zh || '', en: v.en || '', etym: ''};
 }
 
+function recordFrequencies(words) {
+    const now = new Date(), dk = getDecadeKey(now);
+    const mi = getModelIndex('DB');
+    words.forEach(w => {
+        if (!vocabStore.has(w)) vocabStore.set(w, {s: {}});
+        const info = vocabStore.get(w);
+        if (!info.s[dk]) info.s[dk] = {total: 0, m: []};
+        while (info.s[dk].m.length <= mi) info.s[dk].m.push(0);
+        info.s[dk].total++;
+        info.s[dk].m[mi]++;
+    });
+    updateDecadeStats(words, now);
+    saveToLocalStorage();
+}
+
 function buildPrompt(tokens) {
-    return `\`\`\`上下文无关，请直接返回结果。
+    return `上下文无关，请直接返回结果。
 
 从第一行开始，对以下词汇提供格式化注释。如果词汇包含常见德语词根词缀，用一句话说明词根或词缀如何组合成这个意思，不超过15词。
 对于词汇如果是动词就在第二项标注原型，如果是名词就标注词性。
@@ -1241,11 +1259,14 @@ function buildPrompt(tokens) {
 
 如果词汇是英语，则改为
 词汇_动词原形_简体中文翻译_现代日语翻译 >>> 日语翻译中汉字的读音平假名注释
-
+最后标注本次使用的模型名称。
 示例：
+"""
 Entwicklung_die Entwicklung_發展_development >>> ent（去除）+Wicklung（绕组）
-lief_laufen_跑_run_ >>>
+lief_laufen_跑_run_ >>> 
 
+本次使用的模型名稱：Claude Fable 5 
+"""
 
 词汇列表：
 ` + tokens.join('\n');
@@ -1274,8 +1295,10 @@ processBtn.addEventListener('click', () => {
 
     // ── Local mode: DB lookup only, no LLM ───────────────────────────────
     if (translationMode === 'local') {
-        const entries = currentTokens.map(w => dbEntryFor(w)).filter(Boolean);
-        renderCornellTable(entries); renderLeseCornell(entries);
+        const matched = currentTokens.filter(w => vocabDb.has(w));
+        recordFrequencies(matched);
+        const entries = matched.map(w => dbEntryFor(w)).filter(Boolean);
+        renderCornellTable(entries); renderLeseCornell(entries); updateStats(); updateModelStats(); updateMarquee();
         processBtn.classList.add('success'); processBtn.textContent = '✓';
         copyFeedback.textContent = `本地: ${entries.length}/${currentTokens.length} 词`;
         copyFeedback.classList.add('show');
@@ -1290,8 +1313,9 @@ processBtn.addEventListener('click', () => {
     if (translationMode === 'hybrid') {
         const inDb = currentTokens.filter(w => vocabDb.has(w));
         const notInDb = currentTokens.filter(w => !vocabDb.has(w));
+        recordFrequencies(inDb);
         pendingDbEntries = inDb.map(w => dbEntryFor(w)).filter(Boolean);
-        renderCornellTable(pendingDbEntries); renderLeseCornell(pendingDbEntries);
+        renderCornellTable(pendingDbEntries); renderLeseCornell(pendingDbEntries); updateStats(); updateModelStats(); updateMarquee();
         if (notInDb.length === 0) {
             processBtn.classList.add('success'); processBtn.textContent = '✓';
             copyFeedback.textContent = `全部命中词库 (${inDb.length}词)`;
@@ -1310,6 +1334,35 @@ processBtn.addEventListener('click', () => {
                 processBtn.classList.remove('success'); processBtn.textContent = '⎘';
                 copyFeedback.classList.remove('show'); copyFeedback.textContent = 'Kopiert!';
             }, 2200);
+        });
+        return;
+    }
+
+    // ── Gemma mode: send prompt to local Ollama, auto-fill result ────────────
+    if (translationMode === 'gemma') {
+        pendingDbEntries = [];
+        const prompt = buildPrompt(currentTokens);
+        processBtn.classList.add('success'); processBtn.textContent = '…';
+        copyFeedback.textContent = 'Gemma 処理中...'; copyFeedback.classList.add('show');
+        fetch('/api/llm', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({prompt})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) throw new Error(data.error);
+            llmInput.value = data.result;
+            parseLlmResult();
+            copyFeedback.textContent = 'Gemma 完成'; copyFeedback.classList.add('show');
+            setTimeout(() => { copyFeedback.classList.remove('show'); copyFeedback.textContent = 'Kopiert!'; }, 1800);
+        })
+        .catch(err => {
+            copyFeedback.textContent = 'Gemma 错误: ' + err.message; copyFeedback.classList.add('show');
+            setTimeout(() => { copyFeedback.classList.remove('show'); copyFeedback.textContent = 'Kopiert!'; }, 3000);
+        })
+        .finally(() => {
+            processBtn.classList.remove('success'); processBtn.textContent = '⎘';
         });
         return;
     }
@@ -1653,6 +1706,32 @@ document.getElementById('lese-focus-toggle').addEventListener('click', () => {
 });
 
 // ============================================
+// BUILD TOLINO DICT BUTTON
+// ============================================
+document.getElementById('build-dict-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('build-dict-btn');
+    btn.textContent = '…'; btn.disabled = true;
+    try {
+        const r = await fetch('/api/build-dict', { method: 'POST' });
+        const d = await r.json();
+        btn.textContent = d.ok ? '✓' : '✗';
+        btn.style.background = d.ok ? '#28a745' : 'var(--primary)';
+        copyFeedback.textContent = d.msg.split('\n')[0];
+        copyFeedback.classList.add('show');
+        setTimeout(() => {
+            btn.textContent = '辞'; btn.disabled = false;
+            btn.style.background = '';
+            copyFeedback.classList.remove('show');
+            copyFeedback.textContent = 'Kopiert!';
+        }, 3000);
+    } catch(e) {
+        btn.textContent = '✗'; btn.disabled = false;
+        btn.style.background = 'var(--primary)';
+        setTimeout(() => { btn.textContent = '辞'; btn.style.background = ''; }, 2000);
+    }
+});
+
+// ============================================
 // TRANSLATION MODE TOGGLE
 // ============================================
 document.querySelectorAll('#tmode-toggle .tmode-btn').forEach(btn => {
@@ -1663,7 +1742,7 @@ document.querySelectorAll('#tmode-toggle .tmode-btn').forEach(btn => {
         // Show/hide LLM input area depending on mode
         const llmArea = document.getElementById('llm-input');
         const parseLlmBtnEl = document.getElementById('parse-llm-btn');
-        const hidden = translationMode === 'local';
+        const hidden = translationMode === 'local' || translationMode === 'gemma';
         llmArea.style.display = hidden ? 'none' : '';
         parseLlmBtnEl.style.display = hidden ? 'none' : '';
     });
