@@ -3,4 +3,11 @@
 *.json 
 *.zip
 PrivateReadme.md
+.DS_Store
+build_quickdic.py
+# runtime
+__pycache__/
+pending_queue.json
 
+# the *.json rule above would swallow the extension manifest
+!extension/manifest.json

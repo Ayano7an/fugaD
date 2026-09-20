@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Introduction et rondo capriccioso V3.0.3 </title>
+    <title>Introduction et rondo capriccioso</title>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <!-- Change Font -->
+    <link rel="icon" href="icon/favicon.ico" type="image/x-icon">
     <style>
         :root {
             --bg: #ffffff;
@@ -23,6 +24,7 @@
             --text-light: #4a4a4a;
             --text-muted: #6a6a6a;
             --border: #e0e0e0;
+            /*Change Font*/
             --font-serif: 'Cormorant Garamond', Georgia, serif;
             --font-mono: 'JetBrains Mono', monospace;
         }
@@ -310,6 +312,9 @@
         }
         .bekannt-search:focus { outline: none; border-color: var(--blue); }
 
+        .ollama-badge { font-family: var(--font-mono); font-size: 0.55rem; color: var(--text-muted);
+            border: 1px solid var(--border); border-radius: 2px; padding: 0 3px; margin-left: 0.4rem;
+            vertical-align: middle; opacity: 0.7; }
         /* ── Cornell降权样式 ── */
         .cornell-row.known .cornell-word { color: var(--text-muted); font-weight: 400; }
         .cornell-row.known .cornell-def { color: var(--text-muted); }
@@ -520,8 +525,8 @@
 <body>
     <div class="marquee-container">
         <div class="marquee">
-            <div class="marquee-content" id="marquee-content"><span class="marquee-item">Introduction et rondo capriccioso V3.0.3 — Lese-Modus aktiv</span></div>
-            <div class="marquee-content" id="marquee-content-duplicate"><span class="marquee-item">Introduction et rondo capriccioso V3.0.3 — Lese-Modus aktiv</span></div>
+            <div class="marquee-content" id="marquee-content"><span class="marquee-item">Introduction et rondo capriccioso — Lese-Modus aktiv</span></div>
+            <div class="marquee-content" id="marquee-content-duplicate"><span class="marquee-item">Introduction et rondo capriccioso — Lese-Modus aktiv</span></div>
         </div>
     </div>
     <nav class="nav">
@@ -732,7 +737,7 @@
             <button class="tmode-btn active" data-tmode="llm" title="纯LLM模式：全部词汇送入LLM">LLM</button>
             <button class="tmode-btn" data-tmode="hybrid" title="混合模式：词库中已有的直接显示，其余送LLM">混合</button>
             <button class="tmode-btn" data-tmode="local" title="本地模式：只显示词库中已有的翻译">本地</button>
-            <button class="tmode-btn" data-tmode="gemma" title="本地Gemma模式：自动调用本地Ollama Gemma4模型">Gemma</button>
+            <button class="tmode-btn" data-tmode="gemma" title="本地模型模式：自動調用本地 Ollama 模型">Ollama</button>
         </div>
         <div class="divider"></div>
         <input type="text" id="text-input" placeholder="Text eingeben...">
@@ -884,7 +889,7 @@ function updateDecadeStats(words,date=new Date()){
 // ============================================
 function toggleSortMode(){currentSortMode=currentSortMode==='input'?'alpha':'input';const st=document.getElementById('sort-toggle'),sm=document.getElementById('sort-mode-text');if(currentSortMode==='alpha'){st.classList.add('active');sm.textContent='字母排序';}else{st.classList.remove('active');sm.textContent='输入顺序';}if(currentEntries.length>0)renderCornellTable(currentEntries);}
 function updateModelStats(){const mc=new Map();vocabStore.forEach(i=>{if(!i||!i.s)return;Object.values(i.s).forEach(ds=>{if(ds.m)ds.m.forEach((c,mi)=>{if(c>0&&modelsDict[mi])mc.set(modelsDict[mi],(mc.get(modelsDict[mi])||0)+c);});});});const sorted=Array.from(mc.entries()).sort((a,b)=>b[1]-a[1]);const ct=document.getElementById('model-stats-row');if(sorted.length===0){ct.innerHTML='<div class="model-stat-item"><span class="model-stat-name">-</span><span class="model-stat-count">0</span></div>';}else{ct.innerHTML=sorted.map(([m,c])=>`<div class="model-stat-item"><span class="model-stat-name">${m}:</span><span class="model-stat-count">${c}</span></div>`).join('');}}
-function updateMarquee(){const ck=getCurrentDecadeKey();const tc=vocabStore.size;let tw=[];if(tc<100){const fm=new Map();vocabStore.forEach((i,w)=>{if(i&&i.s){let t=0;Object.values(i.s).forEach(d=>t+=d.total);fm.set(w,t);}});tw=Array.from(fm.entries()).sort((a,b)=>b[1]-a[1]).slice(0,25);}else{const cf=new Map(),hf=new Map();vocabStore.forEach((i,w)=>{if(!i||!i.s)return;let cc=0,hc=0;Object.entries(i.s).forEach(([dk,s])=>{if(dk===ck)cc+=s.total;else hc+=s.total;});if(cc>0)cf.set(w,cc);if(hc>0)hf.set(w,hc);});const h50=new Set(Array.from(hf.entries()).sort((a,b)=>b[1]-a[1]).slice(0,50).map(([w])=>w));tw=Array.from(cf.entries()).filter(([w])=>!h50.has(w)).sort((a,b)=>b[1]-a[1]).slice(0,25);}const mc=document.getElementById('marquee-content'),md=document.getElementById('marquee-content-duplicate');if(tw.length===0){const h='<span class="marquee-item">Willkommen zu Fuga Vocabs V2.2</span>';mc.innerHTML=h;md.innerHTML=h;}else{const h=tw.map(([w,f])=>`<span class="marquee-item">${w} <span class="freq">×${f}</span></span>`).join('');mc.innerHTML=h;md.innerHTML=h;}}
+function updateMarquee(){const ck=getCurrentDecadeKey();const tc=vocabStore.size;let tw=[];if(tc<100){const fm=new Map();vocabStore.forEach((i,w)=>{if(i&&i.s){let t=0;Object.values(i.s).forEach(d=>t+=d.total);fm.set(w,t);}});tw=Array.from(fm.entries()).sort((a,b)=>b[1]-a[1]).slice(0,25);}else{const cf=new Map(),hf=new Map();vocabStore.forEach((i,w)=>{if(!i||!i.s)return;let cc=0,hc=0;Object.entries(i.s).forEach(([dk,s])=>{if(dk===ck)cc+=s.total;else hc+=s.total;});if(cc>0)cf.set(w,cc);if(hc>0)hf.set(w,hc);});const h50=new Set(Array.from(hf.entries()).sort((a,b)=>b[1]-a[1]).slice(0,50).map(([w])=>w));tw=Array.from(cf.entries()).filter(([w])=>!h50.has(w)).sort((a,b)=>b[1]-a[1]).slice(0,25);}const mc=document.getElementById('marquee-content'),md=document.getElementById('marquee-content-duplicate');if(tw.length===0){const h='<span class="marquee-item">Willkommen zu Fuga 26 Nördlingen</span>';mc.innerHTML=h;md.innerHTML=h;}else{const h=tw.map(([w,f])=>`<span class="marquee-item">${w} <span class="freq">×${f}</span></span>`).join('');mc.innerHTML=h;md.innerHTML=h;}}
 function updateStats(){let tt=0;vocabStore.forEach(i=>{if(i&&i.s)Object.values(i.s).forEach(d=>tt+=d.total);});const ty=vocabStore.size;const ttr=tt>0?(ty/tt).toFixed(3):'-';document.getElementById('total-tokens').textContent=tt;document.getElementById('total-types').textContent=ty;document.getElementById('current-ttr').textContent=ttr;}
 
 // ============================================
@@ -1216,10 +1221,20 @@ async function loadVocabDb() {
         console.log('VocabDB not available (running without server)');
     }
 }
-async function saveToVocabDb(entries) {
+const SOURCE_PRIORITY = {'llm': 2, 'gemma': 1};
+function sourceCanOverwrite(incoming, existing) {
+    return (SOURCE_PRIORITY[incoming] || 1) >= (SOURCE_PRIORITY[existing?.source] || 0);
+}
+
+async function saveToVocabDb(entries, source = 'llm') {
     try {
         const vocab = {};
-        entries.forEach(({word, lemma, zh, en}) => { vocab[word] = {zh, en, lemma}; });
+        entries.forEach(({word, lemma, zh, en}) => {
+            const existing = vocabDb.get(word);
+            if (!sourceCanOverwrite(source, existing)) return;
+            vocab[word] = {zh, en, lemma, source};
+        });
+        if (Object.keys(vocab).length === 0) return;
         await fetch('/api/db', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -1228,6 +1243,45 @@ async function saveToVocabDb(entries) {
         Object.entries(vocab).forEach(([w, v]) => vocabDb.set(w, v));
     } catch(e) {}
 }
+// ── Browser-extension lookups: drain the server queue into the local stats ──
+async function drainPendingQueue() {
+    const fb = document.getElementById('copy-feedback');
+    try {
+        const r = await fetch('/api/pending?drain=1');
+        if (!r.ok) return;
+        const items = (await r.json()).words || [];
+        if (!items.length) return;
+        const mi = getModelIndex('Browser');
+        const byDecade = new Map();
+        items.forEach(({w, t}) => {
+            if (!w) return;
+            const when = t ? new Date(t * 1000) : new Date();
+            const dk = getDecadeKey(when);
+            if (!vocabStore.has(w)) vocabStore.set(w, {s: {}});
+            const info = vocabStore.get(w);
+            if (!info.s[dk]) info.s[dk] = {total: 0, m: []};
+            while (info.s[dk].m.length <= mi) info.s[dk].m.push(0);
+            info.s[dk].total++; info.s[dk].m[mi]++;
+            // borrow meta from the external DB so Pruefung can quiz on these words
+            if (!info.meta) {
+                const v = vocabDb.get(w);
+                if (v) {
+                    info.meta = {zh: v.zh || '', en: v.en || '', lemma: v.lemma || w, source: v.source || 'gemma'};
+                    rtMetaCache.set(w, {zh: info.meta.zh, en: info.meta.en, lemma: info.meta.lemma});
+                }
+            }
+            if (!byDecade.has(dk)) byDecade.set(dk, {when, words: []});
+            byDecade.get(dk).words.push(w);
+        });
+        byDecade.forEach(({when, words}) => updateDecadeStats(words, when));
+        saveToLocalStorage();
+        updateStats(); updateModelStats(); updateMarquee(); updateFrequencyTable();
+        fb.textContent = `瀏覽器查詞 +${items.length}`;
+        fb.classList.add('show');
+        setTimeout(() => { fb.classList.remove('show'); fb.textContent = 'Kopiert!'; }, 2200);
+    } catch(e) { /* no server, or queue endpoint missing — nothing to drain */ }
+}
+
 function dbEntryFor(word) {
     const v = vocabDb.get(word);
     if (!v) return null;
@@ -1249,24 +1303,37 @@ function recordFrequencies(words) {
     saveToLocalStorage();
 }
 
-function buildPrompt(tokens) {
-    return `上下文无关，请直接返回结果。
+function buildPrompt(tokens, forLocal = false) {
+    const localNote = forLocal ? `
 
-从第一行开始，对以下词汇提供格式化注释。如果词汇包含常见德语词根词缀，用一句话说明词根或词缀如何组合成这个意思，不超过15词。
-对于词汇如果是动词就在第二项标注原型，如果是名词就标注词性。
-例如
-词汇_动词原型/名词词性_繁体中文_英文/德语 >>> 词根词缀
+嚴格規則：
+1. 每個詞彙佔且僅佔一行，不可拆分、不可重複、行與行之間不加空行
+2. 每行格式固定為四個欄位用斜線分隔：詞彙/原型或詞性/繁體中文翻譯/英文翻譯
+3. 繁體中文翻譯和英文翻譯不可省略，不可留空
+4. 詞根詞缀說明寫在 >>> 之後，若無則省略 >>>
+5. 不可輸出任何標題、編號、解釋、空行、前言或結尾說明
+` : '';
+    if (forLocal) return `对以下德语词汇逐词注释，每词一行，格式为：
+词汇/词性或动词原型/中文或英文翻译
 
-如果词汇是英语，则改为
-词汇_动词原形_简体中文翻译_现代日语翻译 >>> 日语翻译中汉字的读音平假名注释
-最后标注本次使用的模型名称。
 示例：
-"""
-Entwicklung_die Entwicklung_發展_development >>> ent（去除）+Wicklung（绕组）
-lief_laufen_跑_run_ >>> 
+Entwicklung/die Entwicklung/發展
+lief/laufen/run
+Hinweis/der Hinweis/提示
 
-本次使用的模型名稱：Claude Fable 5 
-"""
+词汇列表：
+` + tokens.join('\n');
+
+    return `请对以下德语词汇逐词注释，每词一行，格式为：
+词汇/词性或动词原型/繁体中文翻译/英文翻译/词根词缀说明
+
+若词汇含常见德语词根或词缀，第五项用一句话说明其组合方式（不超过15词）；否则第五项留空。
+若词汇为英语，格式改为：词汇/动词原形/简体中文/现代日语/日语汉字读音平假名
+
+示例：
+Entwicklung/die Entwicklung/發展/development/ent（去除）+Wicklung（绕组）
+lief/laufen/跑/run/
+Hinweis/der Hinweis/提示/hint/
 
 词汇列表：
 ` + tokens.join('\n');
@@ -1338,32 +1405,95 @@ processBtn.addEventListener('click', () => {
         return;
     }
 
-    // ── Gemma mode: send prompt to local Ollama, auto-fill result ────────────
+    // ── Ollama mode: batch send to local model, stream results ───────────────
     if (translationMode === 'gemma') {
-        pendingDbEntries = [];
-        const prompt = buildPrompt(currentTokens);
+        const inDb = currentTokens.filter(w => vocabDb.has(w));
+        const notInDb = currentTokens.filter(w => !vocabDb.has(w));
+        recordFrequencies(inDb);
+        pendingDbEntries = inDb.map(w => dbEntryFor(w)).filter(Boolean);
+        if (notInDb.length === 0) {
+            renderCornellTable(pendingDbEntries); renderLeseCornell(pendingDbEntries);
+            updateStats(); updateModelStats(); updateMarquee();
+            processBtn.classList.add('success'); processBtn.textContent = '✓';
+            copyFeedback.textContent = `全部命中詞庫 (${inDb.length}詞)`;
+            copyFeedback.classList.add('show');
+            setTimeout(() => { processBtn.classList.remove('success'); processBtn.textContent = '⎘'; copyFeedback.classList.remove('show'); copyFeedback.textContent = 'Kopiert!'; }, 2000);
+            return;
+        }
+        const ollamaTokens = notInDb;
+        const BATCH = 40;
+        const batches = [];
+        for (let i = 0; i < ollamaTokens.length; i += BATCH)
+            batches.push(ollamaTokens.slice(i, i + BATCH));
+        const total_batches = batches.length;
         processBtn.classList.add('success'); processBtn.textContent = '…';
-        copyFeedback.textContent = 'Gemma 処理中...'; copyFeedback.classList.add('show');
-        fetch('/api/llm', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({prompt})
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.error) throw new Error(data.error);
-            llmInput.value = data.result;
-            parseLlmResult();
-            copyFeedback.textContent = 'Gemma 完成'; copyFeedback.classList.add('show');
-            setTimeout(() => { copyFeedback.classList.remove('show'); copyFeedback.textContent = 'Kopiert!'; }, 1800);
-        })
-        .catch(err => {
-            copyFeedback.textContent = 'Gemma 错误: ' + err.message; copyFeedback.classList.add('show');
-            setTimeout(() => { copyFeedback.classList.remove('show'); copyFeedback.textContent = 'Kopiert!'; }, 3000);
-        })
-        .finally(() => {
-            processBtn.classList.remove('success'); processBtn.textContent = '⎘';
-        });
+        copyFeedback.classList.add('show');
+        const gemmaStart = Date.now();
+        let doneLines = 0;
+        const gemmaTimer = setInterval(() => {
+            const s = Math.floor((Date.now() - gemmaStart) / 1000);
+            copyFeedback.textContent = `Ollama 處理中… ${s}s  ${doneLines}/${ollamaTokens.length}詞`;
+        }, 500);
+        copyFeedback.textContent = `Ollama 處理中… 0s  0/${ollamaTokens.length}詞`;
+
+        async function streamBatch(tokens) {
+            const prompt = buildPrompt(tokens, true);
+            const response = await fetch('/api/llm', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({prompt})
+            });
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '', result = '';
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                const parts = buffer.split('\n\n');
+                buffer = parts.pop();
+                for (const part of parts) {
+                    const dataLine = part.replace(/^data: /, '').trim();
+                    if (!dataLine) continue;
+                    const chunk = JSON.parse(dataLine);
+                    if (chunk.error) throw new Error(chunk.error);
+                    result += chunk.token;
+                    if (chunk.done) return result;
+                }
+            }
+            return result;
+        }
+
+        (async () => {
+            const ollamaAccum = [];
+            try {
+                for (let i = 0; i < batches.length; i++) {
+                    const s = Math.floor((Date.now() - gemmaStart) / 1000);
+                    copyFeedback.textContent = `Ollama 處理中… ${s}s  批次 ${i+1}/${total_batches}`;
+                    const result = await streamBatch(batches[i]);
+                    // parse batch result into entries without rendering
+                    const batchEntries = parseOllamaBatch(result);
+                    ollamaAccum.push(...batchEntries);
+                    // render DB entries + accumulated Ollama entries so far
+                    const merged = [...pendingDbEntries, ...ollamaAccum];
+                    renderCornellTable(merged);
+                    renderLeseCornell(merged);
+                    doneLines += batches[i].length;
+                }
+                // persist all accumulated entries at once
+                saveOllamaEntries(ollamaAccum);
+                updateStats(); updateModelStats(); updateMarquee();
+                const total = Math.floor((Date.now() - gemmaStart) / 1000);
+                copyFeedback.textContent = `Ollama 完成 (${total}s)`;
+                setTimeout(() => { copyFeedback.classList.remove('show'); copyFeedback.textContent = 'Kopiert!'; }, 2500);
+            } catch(err) {
+                copyFeedback.textContent = 'Ollama 錯誤: ' + err.message;
+                setTimeout(() => { copyFeedback.classList.remove('show'); copyFeedback.textContent = 'Kopiert!'; }, 3000);
+            } finally {
+                clearInterval(gemmaTimer);
+                processBtn.classList.remove('success'); processBtn.textContent = '⎘';
+            }
+        })();
         return;
     }
 
@@ -1383,25 +1513,57 @@ textInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();
 llmInput.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();parseLlmResult();}});
 llmInput.addEventListener('paste',()=>{setTimeout(()=>{if(llmInput.value.includes('\n'))parseLlmResult();},100);});
 
-function parseLlmResult(){
+function parseOllamaBatch(text) {
+    const now = new Date(), dk = getDecadeKey(now), entries = [];
+    const mn = 'Ollama'; const mi = getModelIndex(mn);
+    text.split('\n').filter(l => l.trim()).forEach(line => {
+        const parts = line.split('/').map(p => p.trim());
+        if (parts.length >= 2) {
+            const w = parts[0], lm = parts[1] || w, zh = parts[2] || '', en = parts[3] || '', et = parts[4] || '';
+            if (!vocabStore.has(w)) vocabStore.set(w, {s: {}});
+            const info = vocabStore.get(w);
+            if (!info.s[dk]) info.s[dk] = {total: 0, m: []};
+            while (info.s[dk].m.length <= mi) info.s[dk].m.push(0);
+            info.s[dk].total++; info.s[dk].m[mi]++;
+            if (sourceCanOverwrite('gemma', info.meta)) {
+                info.meta = {zh, en, lemma: lm, source: 'gemma'};
+                rtMetaCache.set(w, {zh, en, lemma: lm});
+            }
+            entries.push({word: w, lemma: lm, zh, en, etym: et});
+        }
+    });
+    updateDecadeStats(entries.map(e => e.word), now);
+    return entries;
+}
+
+function saveOllamaEntries(entries) {
+    saveToLocalStorage();
+    saveToVocabDb(entries, 'gemma');
+    // clear llm input and text input
+    llmInput.value = ''; textInput.value = '';
+}
+
+function parseLlmResult(source = 'llm'){
     const lr=llmInput.value.trim();if(!lr)return;
     let lines=lr.split('\n').filter(l=>l.trim());
     const now=new Date(),dk=getDecadeKey(now),entries=[];
-    let mn='Unknown';
-    if(lines.length>0&&(lines[lines.length-1].includes('Model:')||lines[lines.length-1].includes('Model：'))){mn=lines[lines.length-1].split(/[：:]/)[1].trim()||'Unknown';lines.pop();}
+    let mn= source === 'gemma' ? 'Ollama' : 'Unknown';
+    if(lines.length>0&&(lines[lines.length-1].includes('Model:')||lines[lines.length-1].includes('Model：'))){mn=lines[lines.length-1].split(/[：:]/)[1].trim()||mn;lines.pop();}
     const mi=getModelIndex(mn);
-    lines.forEach(line=>{const lp=line.split('>>>');const mp=lp[0].trim();const et=lp.length>1?lp[1].trim():'';const parts=mp.split('_').map(p=>p.trim());
-    if(parts.length>=2){const w=parts[0],lm=parts[1]||w,zh=parts[2]||'',en=parts[3]||'';
+    lines.forEach(line=>{const parts=line.split('/').map(p=>p.trim());
+    if(parts.length>=2){const w=parts[0],lm=parts[1]||w,zh=parts[2]||'',en=parts[3]||'',et=parts[4]||'';
     if(!vocabStore.has(w))vocabStore.set(w,{s:{}});const info=vocabStore.get(w);
     if(!info.s[dk])info.s[dk]={total:0,m:Array(modelsDict.length).fill(0)};
     while(info.s[dk].m.length<=mi)info.s[dk].m.push(0);info.s[dk].total++;info.s[dk].m[mi]++;
-    // persist meta into vocabStore (overwrite with latest)
-    info.meta={zh,en,lemma:lm};
-    rtMetaCache.set(w,{zh,en,lemma:lm});
+    // only overwrite meta if incoming source has equal or higher priority
+    if(sourceCanOverwrite(source, info.meta)){
+        info.meta={zh,en,lemma:lm,source};
+        rtMetaCache.set(w,{zh,en,lemma:lm});
+    }
     entries.push({word:w,lemma:lm,zh,en,etym:et});}});
     updateDecadeStats(entries.map(e=>e.word),now);saveToLocalStorage();
-    // Save new LLM entries to external vocab DB
-    saveToVocabDb(entries);
+    // Save entries to external vocab DB with source priority check
+    saveToVocabDb(entries, source);
     // In hybrid mode, merge pre-loaded DB entries with new LLM results
     let finalEntries = entries;
     if (translationMode === 'hybrid' && pendingDbEntries.length > 0) {
@@ -1427,7 +1589,10 @@ de.forEach(({word,lemma,zh,en,etym})=>{
     r.className='cornell-row'+(isKnown?' known':'');
     const eh=etym?`<br><span style="color:var(--text-muted);font-size:0.85rem;">» ${etym}</span>`:'';
     const knownBadge=isKnown?`<span style="font-family:var(--font-mono);font-size:0.6rem;color:var(--text-muted);margin-left:0.5rem;">bekannt</span>`:'';
-    r.innerHTML=`<div class="cornell-word">${word}${knownBadge} <span style="color:var(--text-muted);font-size:0.85em;">(${tc})</span></div><div class="cornell-def"><span class="lemma">${lemma}</span> · <span class="zh">${zh}</span> · <span class="en">${en}</span>${eh}</div>`;
+    const metaSrc=vocabStore.get(word)?.meta?.source ?? vocabDb.get(word)?.source;
+    const srcBadge=metaSrc==='gemma'?`<span class="ollama-badge">🈹</span>`:metaSrc==='llm'?`<span class="ollama-badge">🛜</span>`:'';
+    const ollamaBadge=srcBadge;
+    r.innerHTML=`<div class="cornell-word">${word}${knownBadge}${ollamaBadge} <span style="color:var(--text-muted);font-size:0.85em;">(${tc})</span></div><div class="cornell-def"><span class="lemma">${lemma}</span> · <span class="zh">${zh}</span> · <span class="en">${en}</span>${eh}</div>`;
     cornellTable.appendChild(r);});}
 document.getElementById('word-count').textContent=`${entries.length} Wörter`;}
 
@@ -1485,6 +1650,7 @@ function initLeseMode() {
 
     if(leseCurrentText) {
         leseMarkedWords.clear();
+        leseMarkedOrder = [];
         // reset focus mode on new text load
         leseFocusMode = false;
         const focusBtn = document.getElementById('lese-focus-toggle');
@@ -1606,9 +1772,16 @@ function renderLeseCornell(entries) {   // Lesen 页右侧
     table.querySelectorAll('.cornell-row').forEach(r => r.remove());
 
     // In focus mode, only show entries whose word has been marked in the text
-    const filtered = leseFocusMode
+    let filtered = leseFocusMode
         ? entries.filter(e => leseMarkedWords.has(e.word))
         : entries;
+    if (leseFocusMode) {
+        const orderMap = new Map(leseMarkedOrder.map((w, i) => [w, i]));
+        filtered = [...filtered].sort((a, b) =>
+            (orderMap.has(a.word) ? orderMap.get(a.word) : Infinity) -
+            (orderMap.has(b.word) ? orderMap.get(b.word) : Infinity)
+        );
+    }
 
     // header: show filtered count / total
     const countLabel = leseFocusMode
@@ -1623,7 +1796,7 @@ function renderLeseCornell(entries) {   // Lesen 页右侧
             : '<div class="empty-state">—</div>';
         table.appendChild(r); return;
     }
-    const de = currentSortMode === 'alpha' ? [...filtered].sort((a,b) => a.word.localeCompare(b.word,'de')) : filtered;
+    const de = (!leseFocusMode && currentSortMode === 'alpha') ? [...filtered].sort((a,b) => a.word.localeCompare(b.word,'de')) : filtered;
     de.forEach(({word, lemma, zh, en, etym}) => {
         if(knownDisplayMode === 'stopword' && personalKnown.has(word)) return;
         const info = vocabStore.get(word);
@@ -1633,19 +1806,22 @@ function renderLeseCornell(entries) {   // Lesen 页右侧
         r.className = 'cornell-row' + (isKnown ? ' known' : '');
         const knownBadge = isKnown ? `<span style="font-family:var(--font-mono);font-size:0.55rem;color:var(--text-muted);margin-left:0.3rem;vertical-align:middle;">bk</span>` : '';
         const tcBadge = `<span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-muted);margin-left:0.25rem;">(${tc})</span>`;
+        const leseSrc = vocabStore.get(word)?.meta?.source ?? vocabDb.get(word)?.source;
+        const leseSrcBadge = leseSrc==='gemma' ? `<span class="ollama-badge">🈹</span>` : leseSrc==='llm' ? `<span class="ollama-badge">🛜</span>` : '';
         const defParts = [
             lemma !== word ? `<span class="lemma">${lemma}</span>` : '',
             zh ? `<span class="zh">${zh}</span>` : '',
             en ? `<span class="en">${en}</span>` : ''
         ].filter(Boolean).join(' · ');
         const etymLine = etym ? `<div style="color:var(--text-muted);font-size:0.8rem;margin-top:0.15rem;">» ${etym}</div>` : '';
-        r.innerHTML = `<div class="cornell-word">${word}${knownBadge}${tcBadge}</div><div class="cornell-def">${defParts}${etymLine}</div>`;
+        r.innerHTML = `<div class="cornell-word">${word}${knownBadge}${leseSrcBadge}${tcBadge}</div><div class="cornell-def">${defParts}${etymLine}</div>`;
         table.appendChild(r);
     });
 }
 
 // ── Lese-Modus: 手动点击标记不认识的词 ──────────────────────────
 let leseMarkedWords = new Set();
+let leseMarkedOrder = []; // tracks click order
 
 function renderLeseClickable() {
     const textBody = document.getElementById('lese-text-body');
@@ -1670,10 +1846,12 @@ function leseWordClick(e) {
     const w = span.dataset.w;
     if (leseMarkedWords.has(w)) {
         leseMarkedWords.delete(w);
+        leseMarkedOrder = leseMarkedOrder.filter(x => x !== w);
         document.querySelectorAll(`#lese-text-body span[data-w="${w}"]`)
             .forEach(s => s.classList.remove('lese-hl'));
     } else {
         leseMarkedWords.add(w);
+        leseMarkedOrder.push(w);
         document.querySelectorAll(`#lese-text-body span[data-w="${w}"]`)
             .forEach(s => s.classList.add('lese-hl'));
     }
@@ -1745,6 +1923,14 @@ document.querySelectorAll('#tmode-toggle .tmode-btn').forEach(btn => {
         const hidden = translationMode === 'local' || translationMode === 'gemma';
         llmArea.style.display = hidden ? 'none' : '';
         parseLlmBtnEl.style.display = hidden ? 'none' : '';
+        // Ollama mode: reset to input order
+        if (translationMode === 'gemma' && currentSortMode === 'alpha') {
+            currentSortMode = 'input';
+            const st = document.getElementById('sort-toggle');
+            const sm = document.getElementById('sort-mode-text');
+            st.classList.remove('active'); sm.textContent = '输入顺序';
+            if (currentEntries.length > 0) renderCornellTable(currentEntries);
+        }
     });
 });
 
@@ -1752,7 +1938,9 @@ document.querySelectorAll('#tmode-toggle .tmode-btn').forEach(btn => {
 // INIT
 // ============================================
 loadFromLocalStorage(); // rebuilds rtMetaCache from vocabStore.meta
-loadVocabDb();          // load external vocab database from server
+// external DB first, then drain words looked up in the browser extension
+loadVocabDb().then(drainPendingQueue);
+window.addEventListener('focus', drainPendingQueue);
 updateStats();
 updateModelStats();
 updateMarquee();

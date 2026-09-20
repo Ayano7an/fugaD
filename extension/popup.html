@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>Fuga Vocabs</title>
+<style>
+  :root { --primary:#c41e3a; --blue:#1e4a8a; --border:#e0e0e0; --muted:#6a6a6a; --bg-light:#f8f9fa; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { width:260px; font-family:Georgia,serif; color:#1a1a1a; background:#fff; }
+  h1 { background:var(--blue); color:#fff; font-family:ui-monospace,Menlo,monospace;
+       font-size:11px; text-transform:uppercase; letter-spacing:.12em; padding:.6rem .75rem; font-weight:600; }
+  .body { padding:.6rem .75rem .75rem; }
+  .row { display:flex; align-items:center; justify-content:space-between; gap:.5rem;
+         padding:.4rem 0; border-bottom:1px solid var(--border); }
+  .row:last-of-type { border-bottom:none; }
+  .row label { font-size:13px; }
+  .row .sub { display:block; color:var(--muted); font-size:11px; font-family:ui-monospace,Menlo,monospace; }
+  input[type=number] { width:64px; height:24px; border:1px solid var(--border); text-align:center;
+                       font-family:ui-monospace,Menlo,monospace; font-size:12px; }
+  select { height:24px; border:1px solid var(--border); font-family:ui-monospace,Menlo,monospace; font-size:12px; }
+  .status { margin-top:.6rem; padding:.4rem .5rem; background:var(--bg-light); border:1px solid var(--border);
+            font-family:ui-monospace,Menlo,monospace; font-size:11px; color:var(--muted); }
+  .status.ok  { border-color:#28a745; color:#1a7431; }
+  .status.bad { border-color:var(--primary); color:var(--primary); }
+  a { display:block; margin-top:.5rem; color:var(--blue); font-family:ui-monospace,Menlo,monospace;
+      font-size:11px; text-decoration:none; }
+  a:hover { text-decoration:underline; }
+</style>
+</head>
+<body>
+  <h1>Fuga Vocabs</h1>
+  <div class="body">
+    <div class="row">
+      <label for="auto">选中即查</label>
+      <input type="checkbox" id="auto">
+    </div>
+    <div class="row">
+      <label for="autoTranslate">未收录时自动调 Ollama<span class="sub">否则显示按钮</span></label>
+      <input type="checkbox" id="autoTranslate">
+    </div>
+    <div class="row">
+      <label for="queue">计入频率统计<span class="sub">写入待处理队列</span></label>
+      <input type="checkbox" id="queue">
+    </div>
+    <div class="row">
+      <label for="side">面板位置</label>
+      <select id="side"><option value="right">右侧</option><option value="left">左侧</option></select>
+    </div>
+    <div class="row">
+      <label for="port">服务器端口</label>
+      <input type="number" id="port" min="1" max="65535">
+    </div>
+    <div class="status" id="status">检查服务器…</div>
+    <a id="open" href="#">打开 Fuga Vocabs ↗</a>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
