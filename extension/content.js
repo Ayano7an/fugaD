@@ -10,7 +10,8 @@
   const WORD_RE = new RegExp(`^[${GERMAN}][${GERMAN}'’\\-]*(?:\\s+[${GERMAN}][${GERMAN}'’\\-]*){0,2}$`);
   const MAX_CARDS = 12;
 
-  let settings = { side: 'right', auto: true, port: 8765, queue: true, autoTranslate: false };
+  let settings = { side: 'right', auto: true, port: 8765, queue: true,
+                   autoTranslate: false, peek: true, width: 332 };
   let host = null, root = null, panel = null, listEl = null, countEl = null;
   let cards = [];          // most-recent-first, {word, state, entry, error}
   let lastQuery = '';
@@ -22,10 +23,7 @@
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'sync') return;
     for (const [k, v] of Object.entries(changes)) settings[k] = v.newValue;
-    if (panel) {
-      panel.classList.remove('left', 'right');
-      panel.classList.add(settings.side);
-    }
+    applySettings();
   });
 
   // ── Panel construction ────────────────────────────────────────────────────
@@ -34,6 +32,7 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     .panel {
       position: fixed; top: 9vh; width: 332px; max-height: 78vh;
+      min-width: 240px; max-width: 640px;
       display: flex; flex-direction: column;
       background: #ffffff; color: #1a1a1a;
       border: 1px solid #e0e0e0; border-top: 2px solid #c41e3a;
@@ -47,6 +46,25 @@
     .panel.left  { left: 0;  border-left: none; }
     .panel.hidden.right { transform: translateX(105%); opacity: 0; pointer-events: none; }
     .panel.hidden.left  { transform: translateX(-105%); opacity: 0; pointer-events: none; }
+
+    /* Peek: fade out while hovered so the text underneath stays readable.
+       Hovering the header strip or any control brings it straight back, so the
+       controls never become unaimable. */
+    .panel.peekable:hover { opacity: .15; }
+    .panel.peekable:hover:has(.head:hover, button:hover, a:hover) { opacity: 1; }
+    .panel.resizing { transition: none; }
+    .panel.resizing, .panel.resizing * { user-select: none; }
+
+    /* Drag handle on the panel's inner edge */
+    .grip { position: absolute; top: 0; bottom: 0; width: 9px; cursor: ew-resize; }
+    .panel.right .grip { left: -1px; }
+    .panel.left  .grip { right: -1px; }
+    .grip::after {
+      content: ''; position: absolute; top: 50%; transform: translateY(-50%);
+      left: 3px; width: 3px; height: 34px; border-radius: 2px;
+      background: #c41e3a; opacity: 0; transition: opacity .15s;
+    }
+    .grip:hover::after, .grip.dragging::after { opacity: .55; }
 
     .head {
       background: #1e4a8a; color: #fff; flex: none;
@@ -111,6 +129,7 @@
     root.innerHTML = `
       <style>${CSS}</style>
       <div class="panel hidden ${settings.side}">
+        <div class="grip" title="拖曳調整寬度"></div>
         <div class="head">
           <span class="title">Fuga</span><span class="count"></span>
           <span class="spacer"></span>
@@ -137,8 +156,7 @@
       else if (act === 'side') {
         settings.side = settings.side === 'right' ? 'left' : 'right';
         chrome.runtime.sendMessage({ type: 'save', patch: { side: settings.side } });
-        panel.classList.remove('left', 'right');
-        panel.classList.add(settings.side);
+        applySettings();
       } else if (act === 'open') {
         window.open(`http://localhost:${settings.port}/index.html`, '_blank');
       } else if (act === 'gen') {
@@ -146,12 +164,57 @@
         generate(w, e.target);
       }
     });
+
+    initGrip();
+    applySettings();
+  }
+
+  // Side, width and peek all live in settings; one place applies them so the
+  // popup, the ⇄ button and a drag all converge on the same rendering.
+  function applySettings() {
+    if (!panel) return;
+    panel.classList.remove('left', 'right');
+    panel.classList.add(settings.side);
+    panel.classList.toggle('peekable', !!settings.peek);
+    panel.style.width = clampWidth(settings.width) + 'px';
+  }
+
+  const clampWidth = w => Math.min(640, Math.max(240, Math.round(Number(w) || 332)));
+
+  // Drag the panel's inner edge to resize. Pointer capture keeps the drag alive
+  // when the cursor leaves the handle or the window.
+  function initGrip() {
+    const grip = root.querySelector('.grip');
+    grip.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      const startX = e.clientX;
+      const startW = panel.getBoundingClientRect().width;
+      grip.setPointerCapture(e.pointerId);
+      grip.classList.add('dragging');
+      panel.classList.add('resizing');
+
+      const move = ev => {
+        const dx = ev.clientX - startX;
+        settings.width = clampWidth(settings.side === 'right' ? startW - dx : startW + dx);
+        panel.style.width = settings.width + 'px';
+      };
+      const done = () => {
+        grip.removeEventListener('pointermove', move);
+        grip.removeEventListener('pointerup', done);
+        grip.removeEventListener('pointercancel', done);
+        grip.classList.remove('dragging');
+        panel.classList.remove('resizing');
+        chrome.runtime.sendMessage({ type: 'save', patch: { width: settings.width } });
+      };
+      grip.addEventListener('pointermove', move);
+      grip.addEventListener('pointerup', done);
+      grip.addEventListener('pointercancel', done);
+    });
   }
 
   function show() {
     if (!host) build();
-    panel.classList.remove('left', 'right');
-    panel.classList.add(settings.side);
+    applySettings();
     panel.classList.remove('hidden');
   }
   function hide() { panel?.classList.add('hidden'); }

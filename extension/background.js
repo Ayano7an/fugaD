@@ -7,7 +7,9 @@ const DEFAULTS = {
   side: 'right',      // 'right' | 'left'
   auto: true,         // pop the panel on selection, vs. context menu only
   queue: true,        // feed looked-up words into the app's frequency stats
-  autoTranslate: false // call Ollama without waiting for the button
+  autoTranslate: false, // call Ollama without waiting for the button
+  peek: true,         // fade the panel while hovered, to read the text underneath
+  width: 332          // panel width in px, set by dragging its inner edge
 };
 
 async function settings() {

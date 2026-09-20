@@ -1,10 +1,12 @@
-const fields = ['auto', 'autoTranslate', 'queue', 'side', 'port'];
+const fields = ['auto', 'autoTranslate', 'queue', 'peek', 'side', 'width', 'port'];
 
 function apply(s) {
   document.getElementById('auto').checked = s.auto;
   document.getElementById('autoTranslate').checked = s.autoTranslate;
   document.getElementById('queue').checked = s.queue;
+  document.getElementById('peek').checked = s.peek;
   document.getElementById('side').value = s.side;
+  document.getElementById('width').value = s.width;
   document.getElementById('port').value = s.port;
   document.getElementById('open').href = `http://localhost:${s.port}/index.html`;
 }
@@ -14,7 +16,9 @@ function collect() {
     auto: document.getElementById('auto').checked,
     autoTranslate: document.getElementById('autoTranslate').checked,
     queue: document.getElementById('queue').checked,
+    peek: document.getElementById('peek').checked,
     side: document.getElementById('side').value,
+    width: Math.min(640, Math.max(240, parseInt(document.getElementById('width').value, 10) || 332)),
     port: parseInt(document.getElementById('port').value, 10) || 8765
   };
 }

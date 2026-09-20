@@ -43,8 +43,16 @@
       <input type="checkbox" id="queue">
     </div>
     <div class="row">
+      <label for="peek">悬浮时变透明<span class="sub">看清面板下的文字</span></label>
+      <input type="checkbox" id="peek">
+    </div>
+    <div class="row">
       <label for="side">面板位置</label>
       <select id="side"><option value="right">右侧</option><option value="left">左侧</option></select>
+    </div>
+    <div class="row">
+      <label for="width">面板宽度<span class="sub">或直接拖面板内侧边缘</span></label>
+      <input type="number" id="width" min="240" max="640" step="4">
     </div>
     <div class="row">
       <label for="port">服务器端口</label>
