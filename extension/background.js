@@ -36,9 +36,14 @@ async function lookup(word, context) {
   const s = await settings();
   let r;
   try {
-    r = await fetch(`${base(s)}/api/lookup?w=${encodeURIComponent(word)}`);
+    // A server that accepts the connection but never answers would otherwise
+    // hold this worker — and the panel — open indefinitely.
+    r = await fetch(`${base(s)}/api/lookup?w=${encodeURIComponent(word)}`,
+                    { signal: AbortSignal.timeout(10000) });
   } catch (e) {
-    return { error: `连接不到 ${base(s)} — server.py 在跑吗？` };
+    return { error: e.name === 'TimeoutError'
+      ? `${base(s)} 无回应（10s）`
+      : `连接不到 ${base(s)} — server.py 在跑吗？` };
   }
   if (!r.ok) return { error: `服务器返回 ${r.status}` };
   const d = await r.json();
@@ -57,10 +62,13 @@ async function translate(word, context) {
     r = await fetch(`${base(s)}/api/translate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ word, context })
+      body: JSON.stringify({ word, context }),
+      signal: AbortSignal.timeout(140000)   // server gives up at 120s
     });
   } catch (e) {
-    return { error: `连接不到 ${base(s)} — server.py 在跑吗？` };
+    return { error: e.name === 'TimeoutError'
+      ? 'Ollama 生成逾時（140s）'
+      : `连接不到 ${base(s)} — server.py 在跑吗？` };
   }
   const d = await r.json().catch(() => ({}));
   if (!r.ok || !d.ok) return { error: d.error || `服务器返回 ${r.status}` };
@@ -70,6 +78,9 @@ async function translate(word, context) {
 
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   (async () => {
+    // Anything thrown in here would close the port with no reply, which the
+    // content script can only report as a timeout. Always answer.
+    try {
     switch (msg.type) {
       case 'lookup':    reply(await lookup(msg.word, msg.context)); break;
       case 'translate': reply(await translate(msg.word, msg.context)); break;
@@ -90,6 +101,9 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         break;
       }
       default: reply({ error: 'unknown message' });
+    }
+    } catch (e) {
+      reply({ error: e?.message || String(e) });
     }
   })();
   return true; // keep the channel open for the async reply

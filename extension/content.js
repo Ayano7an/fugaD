@@ -16,7 +16,9 @@
   let cards = [];          // most-recent-first, {word, state, entry, error}
   let lastQuery = '';
 
-  chrome.runtime.sendMessage({ type: 'settings' }, s => { if (s) settings = s; });
+  try {
+    chrome.runtime.sendMessage({ type: 'settings' }, s => { if (s) settings = s; });
+  } catch (e) { /* orphaned content script; defaults still work */ }
 
   // Settings live in chrome.storage, which content scripts can read directly —
   // no cross-tab broadcast and therefore no host permission on the page needed.
@@ -160,8 +162,10 @@
       } else if (act === 'open') {
         window.open(`http://localhost:${settings.port}/index.html`, '_blank');
       } else if (act === 'gen') {
+        generate(e.target.dataset.word, e.target);
+      } else if (act === 'retry') {
         const w = e.target.dataset.word;
-        generate(w, e.target);
+        query(w, lastContextFor.get(w) || '');
       }
     });
 
@@ -230,7 +234,8 @@
               <div class="miss">查询中…</div></div>`;
     if (c.state === 'error')
       return `<div class="card"><span class="word">${esc(c.word)}</span>
-              <div class="err">${esc(c.error)}</div></div>`;
+              <div class="err">${esc(c.error)}</div>
+              <button class="gen" data-act="retry" data-word="${esc(c.word)}">↻ 重试</button></div>`;
     if (c.state === 'missing')
       return `<div class="card"><span class="word">${esc(c.word)}</span>
               <div class="miss">词库未收录</div>
@@ -269,18 +274,45 @@
   }
 
   // ── Lookup flow ───────────────────────────────────────────────────────────
+
+  // A message to the service worker can fail three ways, and every one of them
+  // used to be able to leave a card stuck on "查询中" forever:
+  //   1. the extension was reloaded and this script is orphaned — sendMessage
+  //      THROWS SYNCHRONOUSLY, so the callback never runs and lastError is never
+  //      reached;
+  //   2. the channel closes with no reply — lastError is set;
+  //   3. nothing ever comes back at all.
+  // send() turns all three into a visible error state.
+  function send(msg, timeoutMs, onResult) {
+    let settled = false;
+    const finish = r => { if (!settled) { settled = true; onResult(r); } };
+    const timer = setTimeout(
+      () => finish({ error: `逾時：${Math.round(timeoutMs / 1000)} 秒無回應` }), timeoutMs);
+    try {
+      chrome.runtime.sendMessage(msg, res => {
+        clearTimeout(timer);
+        if (chrome.runtime.lastError) {
+          finish({ error: '扩展已更新或被停用 — 请重新载入此页面' });
+        } else {
+          finish(res || { error: '无响应' });
+        }
+      });
+    } catch (e) {
+      clearTimeout(timer);
+      const orphaned = /context invalidated|Extension context/i.test(e?.message || '');
+      finish({ error: orphaned
+        ? '扩展已更新 — 请重新载入此页面（⌘R）'
+        : '扩展通讯失败：' + (e?.message || e) });
+    }
+  }
+
   function query(word, context) {
     word = word.trim();
     if (!word) return;
     show();
     upsert(word, { state: 'loading' });
-    chrome.runtime.sendMessage({ type: 'lookup', word, context }, res => {
-      if (chrome.runtime.lastError) {
-        upsert(word, { state: 'error', error: '扩展未就绪，请重载页面' });
-        return;
-      }
-      if (!res) upsert(word, { state: 'error', error: '无响应' });
-      else if (res.error) upsert(word, { state: 'error', error: res.error });
+    send({ type: 'lookup', word, context }, 15000, res => {
+      if (res.error) upsert(word, { state: 'error', error: res.error });
       else if (res.found) upsert(word, { state: 'ok', entry: res.entry });
       else upsert(word, { state: 'missing' });
     });
@@ -290,8 +322,9 @@
     if (btn) btn.disabled = true;
     const ctx = lastContextFor.get(word) || '';
     upsert(word, { state: 'generating' });
-    chrome.runtime.sendMessage({ type: 'translate', word, context: ctx }, res => {
-      if (!res || res.error) upsert(word, { state: 'error', error: res?.error || '生成失败' });
+    // Ollama is slow; the server itself gives up at 120s, so allow a little more.
+    send({ type: 'translate', word, context: ctx }, 150000, res => {
+      if (res.error) upsert(word, { state: 'error', error: res.error });
       else upsert(word, { state: 'ok', entry: res.entry });
     });
   }
