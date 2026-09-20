@@ -1,18 +1,22 @@
-#!/opt/anaconda3/bin/python
+#!/usr/bin/env python3
 """
-Convert vocab_db.json → dicthtmlos-de-zht.zip (Kobo/Tolino dicthtml format)
-Place the output zip in /Volumes/TOLINOWUTA/.kobo/dict/ to use on device.
+Convert vocab_db.json → dicthtmlos-de-zh.zip (Kobo/Tolino dicthtml format)
+Copy the output zip to <device>/.kobo/custom-dict/ to use it on the reader.
 Requires: pip install pyglossary marisa-trie
+
+Run with an interpreter that has pyglossary (and its pyicu dependency) installed
+— that is usually NOT the system python3. See FUGA_DICT_PYTHON in server.py.
 """
 import json
 import shutil
+import tempfile
 import zipfile
 from pathlib import Path
 
 from pyglossary.glossary_v2 import Glossary
 
 DB_PATH     = Path(__file__).parent / 'vocab_db.json'
-TMP_DIR     = Path('/tmp/fuga_kobo_build')
+TMP_DIR     = Path(tempfile.gettempdir()) / 'fuga_kobo_build'
 OUT_PATH    = Path(__file__).parent / 'dicthtmlos-de-zh.zip'
 
 

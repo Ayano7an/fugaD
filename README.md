@@ -66,15 +66,29 @@ pause
 
 不用這兩種裝置的話，忽略這個按鈕即可；**其餘功能與它無關**，不裝 `pyglossary` 也不影響任何其他部分。
 
-此外它目前**只能在 macOS + Anaconda 環境下運作**，因為三處硬編碼路徑：
+它另需 `pip install pyglossary marisa-trie`。麻煩之處在於 `pyglossary` 依賴 `pyicu`，而 `pyicu` 通常只裝在某一個特定環境裡（例如 Anaconda），不在系統 python 裡；Windows 上更不好裝。
 
-| 位置 | 內容 | 問題 |
+因此執行詞典建置的直譯器是可設定的，預設取**啟動 server.py 的那個直譯器**：
+
+| 環境變數 | 預設 | 用途 |
 |---|---|---|
-| `build_quickdic.py` 第 1 行 | `#!/opt/anaconda3/bin/python` | 綁定特定 Anaconda 安裝 |
-| `build_quickdic.py` `TMP_DIR` | `/tmp/fuga_kobo_build` | POSIX 專用，Windows 無此路徑 |
-| `server.py` `/api/build-dict` | 同樣寫死 Anaconda 路徑 | 同上 |
+| `FUGA_DICT_PYTHON` | `sys.executable` | 執行 `build_quickdic.py` 的直譯器 |
+| `FUGA_OLLAMA_MODEL` | `qwen2.5:7b` | Ollama 模型 |
+| `FUGA_OLLAMA_URL` | `http://localhost:11434/api/generate` | Ollama 端點 |
 
-另需 `pip install pyglossary marisa-trie`，其中 `pyicu` 在 Windows 上不易安裝。**除此之外**（伺服器、網頁介面、Ollama 模式、瀏覽器擴展）在 Windows 上都正常。
+所以最省事的做法是**直接用裝了 pyglossary 的那個 python 啟動伺服器**（`server.py` 只用標準庫，任何 3.8+ 直譯器都跑得動）：
+
+```bash
+/path/to/env/bin/python server.py
+```
+
+或者分開指定：
+
+```bash
+FUGA_DICT_PYTHON=/path/to/env/bin/python python3 server.py
+```
+
+伺服器啟動時會把實際採用的值印出來，可據以核對。**除此之外**（伺服器、網頁介面、Ollama 模式、瀏覽器擴展）在 Windows 上都正常。
 
 ---
 
@@ -152,17 +166,14 @@ pause
 輸出轉移指令
 將詞典載入閱讀器的對應 目錄：`~/.kobo/custom-dict`
 
-使用方式：
-build_quickdic.py 的 shebang 行已指定直接使用 Anaconda 的 Python，因此最簡單的方式是：
+使用方式：在專案根目錄下，用**裝有 pyglossary 的那個直譯器**執行：
 
-方法一：直接執行（推薦）
+```bash
+/path/to/env/bin/python build_quickdic.py
+```
 
-`/opt/anaconda3/bin/python /Users/ayano/Documents/MyApp/fugaD/build_quickdic.py`
-方法二：因為已 chmod +x，可直接呼叫
-
-`/Users/ayano/Documents/MyApp/fugaD/build_quickdic.py`
-
-系統的 python3（`/usr/bin/python3`）不可用，因為 pyicu 只裝在 Anaconda 環境裡，缺少它會報錯。
+系統的 `python3` 通常不可用，因為 `pyicu` 多半只裝在特定環境（如 Anaconda）裡，缺少它會報錯。
+從網頁介面按「辞」鈕時，伺服器會改用 `FUGA_DICT_PYTHON`（預設為啟動伺服器的直譯器）——見上方「但書」一節。
 
 
 ---

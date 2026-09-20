@@ -17,8 +17,16 @@ PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
 BASE_DIR = Path(__file__).parent.resolve()
 DB_PATH = BASE_DIR / 'vocab_db.json'
 QUEUE_PATH = BASE_DIR / 'pending_queue.json'
-OLLAMA_MODEL = 'qwen2.5:7b'
-OLLAMA_URL = 'http://localhost:11434/api/generate'
+# ── Config hooks: every one of these can be overridden by an environment
+# variable, so no machine-specific path has to live in the repository. ────────
+OLLAMA_MODEL = os.environ.get('FUGA_OLLAMA_MODEL', 'qwen2.5:7b')
+OLLAMA_URL = os.environ.get('FUGA_OLLAMA_URL', 'http://localhost:11434/api/generate')
+
+# Interpreter used for the Tolino/Kobo dictionary build. pyglossary needs pyicu,
+# which often lives in one specific environment (e.g. Anaconda) rather than the
+# system python. Defaults to whichever interpreter is running this server, so
+# launching server.py with that environment's python is enough.
+DICT_PYTHON = os.environ.get('FUGA_DICT_PYTHON', sys.executable)
 
 # ── German article stripping for lemma matching ──────────────────────────────
 ARTICLES = ('der ', 'die ', 'das ', 'den ', 'dem ', 'des ')
@@ -407,7 +415,7 @@ class FugaHandler(http.server.SimpleHTTPRequestHandler):
             import subprocess
             try:
                 result = subprocess.run(
-                    ['/opt/anaconda3/bin/python', str(BASE_DIR / 'build_quickdic.py')],
+                    [DICT_PYTHON, str(BASE_DIR / 'build_quickdic.py')],
                     capture_output=True, text=True, timeout=60
                 )
                 ok = result.returncode == 0
@@ -452,6 +460,7 @@ if __name__ == '__main__':
     print(f'Fuga Vocabs  →  http://localhost:{PORT}')
     print(f'Vocab DB     →  {DB_PATH}')
     print(f'Ollama       →  {OLLAMA_MODEL}')
+    print(f'Dict python  →  {DICT_PYTHON}')
     print('Ctrl-C to stop.\n')
     with ThreadedHTTPServer(('', PORT), FugaHandler) as httpd:
         try:
