@@ -21,24 +21,17 @@ function base(s) {
   return `http://localhost:${s.port}`;
 }
 
-async function enqueue(s, word) {
-  if (!s.queue || !word) return;
-  try {
-    await fetch(`${base(s)}/api/pending`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ words: [word] })
-    });
-  } catch (e) { /* queue is best-effort; never block a lookup on it */ }
-}
-
 async function lookup(word, context) {
   const s = await settings();
   let r;
   try {
     // A server that accepts the connection but never answers would otherwise
     // hold this worker — and the panel — open indefinitely.
-    r = await fetch(`${base(s)}/api/lookup?w=${encodeURIComponent(word)}`,
+    // count=1 lets the server record the encounter and return the updated
+    // tally in the same round trip, so the panel shows the same (N) the web UI
+    // does instead of a number one behind.
+    const count = s.queue ? '&count=1' : '';
+    r = await fetch(`${base(s)}/api/lookup?w=${encodeURIComponent(word)}${count}`,
                     { signal: AbortSignal.timeout(10000) });
   } catch (e) {
     return { error: e.name === 'TimeoutError'
@@ -48,8 +41,7 @@ async function lookup(word, context) {
   if (!r.ok) return { error: `服务器返回 ${r.status}` };
   const d = await r.json();
   if (d.found) {
-    enqueue(s, d.entry.word);
-    return { found: true, entry: d.entry };
+    return { found: true, entry: { ...d.entry, freq: d.freq ?? 0 } };
   }
   if (s.autoTranslate) return translate(word, context);
   return { found: false, word };
@@ -62,7 +54,7 @@ async function translate(word, context) {
     r = await fetch(`${base(s)}/api/translate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ word, context }),
+      body: JSON.stringify({ word, context, count: !!s.queue }),
       signal: AbortSignal.timeout(140000)   // server gives up at 120s
     });
   } catch (e) {
@@ -72,7 +64,6 @@ async function translate(word, context) {
   }
   const d = await r.json().catch(() => ({}));
   if (!r.ok || !d.ok) return { error: d.error || `服务器返回 ${r.status}` };
-  enqueue(s, d.entry.word);
   return { found: true, entry: d.entry, fresh: true };
 }
 

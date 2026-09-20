@@ -11,3 +11,6 @@ pending_queue.json
 
 # the *.json rule above would swallow the extension manifest
 !extension/manifest.json
+
+# runtime
+freq_cache.json

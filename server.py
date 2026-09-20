@@ -17,6 +17,7 @@ PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
 BASE_DIR = Path(__file__).parent.resolve()
 DB_PATH = BASE_DIR / 'vocab_db.json'
 QUEUE_PATH = BASE_DIR / 'pending_queue.json'
+FREQ_PATH = BASE_DIR / 'freq_cache.json'
 # ── Config hooks: every one of these can be overridden by an environment
 # variable, so no machine-specific path has to live in the repository. ────────
 OLLAMA_MODEL = os.environ.get('FUGA_OLLAMA_MODEL', 'qwen2.5:7b')
@@ -132,7 +133,40 @@ def queue_push(words):
         q['words'].extend({'w': w, 't': now} for w in words)
         q['words'] = q['words'][-5000:]
         QUEUE_PATH.write_text(json.dumps(q, ensure_ascii=False), encoding='utf-8')
+        # Keep the frequency cache in lockstep with the queue: every word that
+        # will eventually be counted by the app is counted here immediately, so
+        # the extension can show the same number the Lesen panel shows.
+        freq_bump(words)
         return len(q['words'])
+
+
+# ── Frequency cache ──────────────────────────────────────────────────────────
+# index.html owns the real per-decade tally in its localStorage and pushes a
+# flat word → total map here. The server only has to serve it back and keep it
+# current between pushes, so an extension lookup and the web UI agree.
+def freq_load():
+    if FREQ_PATH.exists():
+        try:
+            return json.loads(FREQ_PATH.read_text('utf-8'))
+        except json.JSONDecodeError:
+            pass
+    return {}
+
+
+def freq_bump(words):
+    m = freq_load()
+    for w in words:
+        m[w] = m.get(w, 0) + 1
+    FREQ_PATH.write_text(json.dumps(m, ensure_ascii=False), encoding='utf-8')
+
+
+def freq_replace(m):
+    """The app's tally is authoritative; replacing (not merging) is what keeps
+    the two from drifting apart after the queue is drained."""
+    with _queue_lock:
+        clean = {str(k): int(v) for k, v in (m or {}).items() if v}
+        FREQ_PATH.write_text(json.dumps(clean, ensure_ascii=False), encoding='utf-8')
+        return len(clean)
 
 
 def queue_drain():
@@ -280,10 +314,16 @@ class FugaHandler(http.server.SimpleHTTPRequestHandler):
             if entry is None:
                 self._json({'found': False, 'word': word})
                 return
+            # count=1 records the encounter (queue for the app + bump the cache)
+            # before reading the tally back, so the number returned includes this
+            # lookup — matching what the web UI shows after recordFrequencies().
+            if (query.get('count') or ['0'])[0] in ('1', 'true'):
+                queue_push([key])
             self._json({
                 'found': True,
                 'word': word,
                 'key': key,
+                'freq': freq_load().get(key, 0),
                 'entry': {
                     'word': key,
                     'lemma': entry.get('lemma') or key,
@@ -392,6 +432,9 @@ class FugaHandler(http.server.SimpleHTTPRequestHandler):
                     entry = {**entry, **existing, 'word': entry['word'],
                              'etym': existing.get('etym', '')}
                     saved = False
+                if body.get('count'):
+                    queue_push([entry['word']])
+                entry['freq'] = freq_load().get(entry['word'], 0)
                 print(f'  [translate] {word} → {entry["zh"]} / {entry["en"]}')
                 self._json({'ok': True, 'entry': entry, 'saved': saved})
             except urllib.error.URLError as e:
@@ -407,6 +450,15 @@ class FugaHandler(http.server.SimpleHTTPRequestHandler):
                 words = [w for w in (body.get('words') or []) if w]
                 total = queue_push(words)
                 self._json({'ok': True, 'queued': len(words), 'total': total})
+            except Exception as e:
+                self._json({'ok': False, 'error': str(e)}, 500)
+            return
+
+        # ── POST /api/freq — index.html pushes its authoritative tally ──────
+        if route.path == '/api/freq':
+            try:
+                n = freq_replace(self._read_json().get('freq'))
+                self._json({'ok': True, 'words': n})
             except Exception as e:
                 self._json({'ok': False, 'error': str(e)}, 500)
             return

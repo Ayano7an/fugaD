@@ -91,6 +91,10 @@
     .card { border-bottom: 1px solid #e0e0e0; padding: .55rem .8rem; }
     .card:first-child { background: #f8f9fa; }
     .card .word { font-weight: 600; color: #c41e3a; font-size: 17px; letter-spacing: .02em; }
+    .card .freq {
+      font-family: ui-monospace, Menlo, monospace; font-size: 11px;
+      color: #6a6a6a; margin-left: .25rem;
+    }
     .card .badge {
       font-family: ui-monospace, Menlo, monospace; font-size: 9px; color: #6a6a6a;
       border: 1px solid #e0e0e0; border-radius: 2px; padding: 0 3px;
@@ -246,12 +250,14 @@
 
     const e = c.entry;
     const badge = SRC_BADGE[e.source] ? `<span class="badge">${SRC_BADGE[e.source]}</span>` : '';
+    // Encounter count, same (N) the Lesen panel puts after each word
+    const freq = e.freq ? `<span class="freq">(${e.freq})</span>` : '';
     const parts = [];
     if (e.lemma && e.lemma !== e.word) parts.push(`<span class="lemma">${esc(e.lemma)}</span>`);
     if (e.zh) parts.push(`<span class="zh">${esc(e.zh)}</span>`);
     if (e.en) parts.push(`<span class="en">${esc(e.en)}</span>`);
     const etym = e.etym ? `<div class="etym">» ${esc(e.etym)}</div>` : '';
-    return `<div class="card"><span class="word">${esc(e.word)}</span>${badge}
+    return `<div class="card"><span class="word">${esc(e.word)}</span>${badge}${freq}
             <div class="def">${parts.join(' <span class="sep">·</span> ')}${etym}</div></div>`;
   }
 

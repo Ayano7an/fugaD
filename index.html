@@ -846,6 +846,7 @@ function saveToLocalStorage(){
         personalKnown:Object.fromEntries(personalKnown),
         knownDisplayMode};
     localStorage.setItem('fugaVocabs',JSON.stringify(d));
+    if (typeof pushFreqToServer === 'function') pushFreqToServer();
 }
 function loadFromLocalStorage(){
     try{const s=localStorage.getItem('fugaVocabs');if(!s)return;const d=JSON.parse(s);
@@ -1243,6 +1244,30 @@ async function saveToVocabDb(entries, source = 'llm') {
         Object.entries(vocab).forEach(([w, v]) => vocabDb.set(w, v));
     } catch(e) {}
 }
+// ── Frequency tally → server, so the browser extension can show the same
+// number the Lesen panel shows. vocabStore lives in this page's localStorage,
+// which the extension cannot read across origins. Debounced: saveToLocalStorage
+// fires on every edit, this only needs to land occasionally.
+let freqPushTimer = null;
+function pushFreqToServer() {
+    clearTimeout(freqPushTimer);
+    freqPushTimer = setTimeout(async () => {
+        try {
+            const freq = {};
+            vocabStore.forEach((info, w) => {
+                if (!info || !info.s) return;
+                let t = 0; Object.values(info.s).forEach(d => t += d.total);
+                if (t) freq[w] = t;
+            });
+            await fetch('/api/freq', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({freq})
+            });
+        } catch(e) { /* no server — the web UI works without one */ }
+    }, 3000);
+}
+
 // ── Browser-extension lookups: drain the server queue into the local stats ──
 async function drainPendingQueue() {
     const fb = document.getElementById('copy-feedback');
@@ -1276,6 +1301,7 @@ async function drainPendingQueue() {
         byDecade.forEach(({when, words}) => updateDecadeStats(words, when));
         saveToLocalStorage();
         updateStats(); updateModelStats(); updateMarquee(); updateFrequencyTable();
+        pushFreqToServer();
         fb.textContent = `瀏覽器查詞 +${items.length}`;
         fb.classList.add('show');
         setTimeout(() => { fb.classList.remove('show'); fb.textContent = 'Kopiert!'; }, 2200);
@@ -1939,7 +1965,7 @@ document.querySelectorAll('#tmode-toggle .tmode-btn').forEach(btn => {
 // ============================================
 loadFromLocalStorage(); // rebuilds rtMetaCache from vocabStore.meta
 // external DB first, then drain words looked up in the browser extension
-loadVocabDb().then(drainPendingQueue);
+loadVocabDb().then(drainPendingQueue).then(pushFreqToServer);
 window.addEventListener('focus', drainPendingQueue);
 updateStats();
 updateModelStats();
