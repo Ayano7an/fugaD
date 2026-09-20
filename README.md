@@ -60,17 +60,21 @@ pause
 
 ---
 
-## 已知平台限制
+## 但書：「辞」鈕的適用範圍
 
-**Tolino／Kobo 詞典匯出（底部工具列的「辞」鈕）目前只能在 macOS + Anaconda 環境下運作。** 兩處硬編碼：
+底部工具列的「**辞**」（詞典匯出）**不是通用功能**，它只對使用 **Tolino 或 Kobo 電子書閱讀器**的人有意義——輸出的是 Kobo `dicthtml` 格式，需要把 zip 放進裝置的 `.kobo/custom-dict/` 目錄才能用。其他閱讀器（Kindle、reMarkable、PocketBook）格式不相容。
 
-| 位置 | 內容 | Windows 上的問題 |
+不用這兩種裝置的話，忽略這個按鈕即可；**其餘功能與它無關**，不裝 `pyglossary` 也不影響任何其他部分。
+
+此外它目前**只能在 macOS + Anaconda 環境下運作**，因為三處硬編碼路徑：
+
+| 位置 | 內容 | 問題 |
 |---|---|---|
-| `build_quickdic.py` 第 1 行 | `#!/opt/anaconda3/bin/python` | 路徑不存在 |
-| `build_quickdic.py` `TMP_DIR` | `/tmp/fuga_kobo_build` | 應改用 `tempfile.gettempdir()` |
+| `build_quickdic.py` 第 1 行 | `#!/opt/anaconda3/bin/python` | 綁定特定 Anaconda 安裝 |
+| `build_quickdic.py` `TMP_DIR` | `/tmp/fuga_kobo_build` | POSIX 專用，Windows 無此路徑 |
 | `server.py` `/api/build-dict` | 同樣寫死 Anaconda 路徑 | 同上 |
 
-此功能另需 `pip install pyglossary marisa-trie`，其中 `pyicu` 在 Windows 上不易安裝。**除此之外**（伺服器、網頁介面、Ollama 模式、瀏覽器擴展）在 Windows 上都正常。
+另需 `pip install pyglossary marisa-trie`，其中 `pyicu` 在 Windows 上不易安裝。**除此之外**（伺服器、網頁介面、Ollama 模式、瀏覽器擴展）在 Windows 上都正常。
 
 ---
 

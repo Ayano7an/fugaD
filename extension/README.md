@@ -9,7 +9,7 @@
 1. 先让本地服务跑起来：
 
    ```bash
-   python3 /Users/ayano/Documents/MyApp/fugaD/server.py
+   python3 server.py   # 在專案根目錄執行
    ```
 
 2. 浏览器地址栏进入 `vivaldi://extensions`（Chrome 是 `chrome://extensions`）
